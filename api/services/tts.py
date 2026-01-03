@@ -1,58 +1,48 @@
-import pyttsx3
-from typing import Optional
+from elevenlabs import VoiceSettings
+from elevenlabs.client import ElevenLabs
+from config import settings
 
 
 class TextToSpeechService:
-    """Service for converting text to speech"""
+    """Service for converting text to speech using ElevenLabs"""
 
     def __init__(self) -> None:
-        self.engine: Optional[pyttsx3.Engine] = None
-        self._initialize_engine()
+        if not settings.elevenlabs_api_key:
+            raise ValueError("ElevenLabs API key not configured")
 
-    def _initialize_engine(self) -> None:
-        """Initialize the TTS engine"""
-        try:
-            self.engine = pyttsx3.init()
-            if self.engine:
-                self.engine.setProperty("rate", 150)  # Speed of speech
-                self.engine.setProperty("volume", 0.9)  # Volume (0-1)
-        except Exception as e:
-            print(f"Warning: Could not initialize TTS engine: {e}")
-            self.engine = None
+        self.client = ElevenLabs(api_key=settings.elevenlabs_api_key)
+        self.voice_id = settings.elevenlabs_voice_id
 
-    def speak(self, text: str) -> None:
+    def text_to_speech(self, text: str) -> bytes:
         """
-        Convert text to speech and play it
+        Convert text to speech audio using ElevenLabs
 
         Args:
             text: Text to convert to speech
-        """
-        if not self.engine:
-            print(f"TTS not available. Text: {text}")
-            return
 
+        Returns:
+            Audio data as bytes (MP3 format)
+        """
         try:
-            self.engine.say(text)
-            self.engine.runAndWait()
+            # Generate audio using ElevenLabs streaming API
+            audio_generator = self.client.text_to_speech.convert(
+                voice_id=self.voice_id,
+                text=text,
+                model_id="eleven_turbo_v2_5",
+                voice_settings=VoiceSettings(
+                    stability=0.5,
+                    similarity_boost=0.75,
+                    style=0.0,
+                    use_speaker_boost=True,
+                ),
+            )
+
+            # Collect all audio chunks
+            audio_chunks = list(audio_generator)
+            return b"".join(audio_chunks)
+
         except Exception as e:
-            print(f"Error during speech: {e}")
-
-    def save_to_file(self, text: str, filename: str) -> None:
-        """
-        Save speech to an audio file
-
-        Args:
-            text: Text to convert
-            filename: Output file path
-        """
-        if not self.engine:
-            raise RuntimeError("TTS engine not initialized")
-
-        try:
-            self.engine.save_to_file(text, filename)
-            self.engine.runAndWait()
-        except Exception as e:
-            print(f"Error saving audio file: {e}")
+            print(f"Error generating speech: {e}")
             raise
 
 

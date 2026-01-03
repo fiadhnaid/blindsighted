@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     # Gemini Model
     gemini_model: str = "google/gemini-2.0-flash-exp:free"
 
+    # ElevenLabs API
+    elevenlabs_api_key: str = ""
+    elevenlabs_voice_id: str = "21m00Tcm4TlvDq8ikWAM"  # Rachel voice
+
     # CORS
     cors_origins: list[str] = ["http://localhost:8081", "exp://"]
 

@@ -1,3 +1,4 @@
+import base64
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -28,6 +29,7 @@ class FrameResponse(BaseModel):
     """Response model for frame processing"""
 
     description: str
+    audio: str  # Base64 encoded MP3 audio
     timestamp: int
     processing_time_ms: float
 
@@ -56,13 +58,15 @@ async def process_frame(request: FrameRequest) -> FrameResponse:
         # Generate description using Gemini via OpenRouter
         description = await openrouter_client.describe_image(request.image)
 
-        # Speak the description
-        tts_service.speak(description)
+        # Generate audio using ElevenLabs
+        audio_bytes = tts_service.text_to_speech(description)
+        audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
 
         processing_time = (time.time() - start_time) * 1000
 
         return FrameResponse(
             description=description,
+            audio=audio_base64,
             timestamp=request.timestamp,
             processing_time_ms=processing_time,
         )
