@@ -1,13 +1,18 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Button, Alert, ScrollView } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import * as MetaWearables from 'expo-meta-wearables';
+import { videoStreamService } from './src/services/videoStream';
+import { META_APP_ID, STREAM_INTERVAL_MS, STREAM_IMAGE_QUALITY, STREAMED_FPS } from './src/config/constants';
 
 export default function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [deviceInfo, setDeviceInfo] = useState<any>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [lastDescription, setLastDescription] = useState<string>('');
+  const streamIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     initializeSDK();
@@ -16,7 +21,7 @@ export default function App() {
   const initializeSDK = async () => {
     try {
       await MetaWearables.initialize({
-        appId: '856891110384461',
+        appId: META_APP_ID,
         analyticsEnabled: false,
       });
       setIsInitialized(true);
@@ -89,6 +94,43 @@ export default function App() {
     }
   };
 
+  const handleStartStreaming = async () => {
+    try {
+      await videoStreamService.startStreaming((frameData) => {
+        console.log('Frame captured at:', new Date(frameData.timestamp));
+      });
+      setIsStreaming(true);
+
+      // Capture frames at configured FPS
+      streamIntervalRef.current = setInterval(async () => {
+        try {
+          const photo = await MetaWearables.capturePhoto({ quality: STREAM_IMAGE_QUALITY });
+          await videoStreamService.captureAndSendFrame(photo.uri);
+        } catch (error) {
+          console.error('Error capturing frame:', error);
+        }
+      }, STREAM_INTERVAL_MS);
+    } catch (error) {
+      Alert.alert('Streaming Error', String(error));
+    }
+  };
+
+  const handleStopStreaming = () => {
+    if (streamIntervalRef.current) {
+      clearInterval(streamIntervalRef.current);
+      streamIntervalRef.current = null;
+    }
+    videoStreamService.stopStreaming();
+    setIsStreaming(false);
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      handleStopStreaming();
+    };
+  }, []);
+
   return (
     <View style={styles.container}>
       <StatusBar style="auto" />
@@ -122,6 +164,18 @@ export default function App() {
           <Text style={[styles.statusValue, isRecording && styles.recording]}>
             {isRecording ? 'Yes' : 'No'}
           </Text>
+
+          <Text style={styles.statusLabel}>Streaming:</Text>
+          <Text style={[styles.statusValue, isStreaming && styles.streaming]}>
+            {isStreaming ? `Active (${STREAMED_FPS} FPS)` : 'Inactive'}
+          </Text>
+
+          {lastDescription && (
+            <>
+              <Text style={styles.statusLabel}>Last Description:</Text>
+              <Text style={styles.statusValue}>{lastDescription}</Text>
+            </>
+          )}
         </View>
 
         <View style={styles.buttonContainer}>
@@ -145,6 +199,15 @@ export default function App() {
             title={isRecording ? 'Stop Recording' : 'Start Recording'}
             onPress={isRecording ? handleStopRecording : handleStartRecording}
             disabled={!isConnected}
+          />
+
+          <View style={styles.spacer} />
+
+          <Button
+            title={isStreaming ? 'Stop AI Streaming' : 'Start AI Streaming'}
+            onPress={isStreaming ? handleStopStreaming : handleStartStreaming}
+            disabled={!isConnected}
+            color={isStreaming ? '#f44336' : '#2196F3'}
           />
         </View>
 
@@ -209,6 +272,10 @@ const styles = StyleSheet.create({
   },
   recording: {
     color: '#f44336',
+    fontWeight: '600',
+  },
+  streaming: {
+    color: '#2196F3',
     fontWeight: '600',
   },
   buttonContainer: {
