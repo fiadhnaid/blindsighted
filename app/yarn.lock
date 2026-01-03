@@ -2249,6 +2249,10 @@ expo-keep-awake@~15.0.8:
   resolved "https://registry.yarnpkg.com/expo-keep-awake/-/expo-keep-awake-15.0.8.tgz#911c5effeba9baff2ccde79ef0ff5bf856215f8d"
   integrity sha512-YK9M1VrnoH1vLJiQzChZgzDvVimVoriibiDIFLbQMpjYBnvyfUeHJcin/Gx1a+XgupNXy92EQJLgI/9ZuXajYQ==
 
+"expo-meta-wearables@link:../../expo-meta-wearables":
+  version "0.0.0"
+  uid ""
+
 expo-modules-autolinking@3.0.23:
   version "3.0.23"
   resolved "https://registry.yarnpkg.com/expo-modules-autolinking/-/expo-modules-autolinking-3.0.23.tgz#1b4349476d4c75b4f2dcefe716ff28c6746aa6ed"
@@ -2264,6 +2268,13 @@ expo-modules-core@3.0.29:
   version "3.0.29"
   resolved "https://registry.yarnpkg.com/expo-modules-core/-/expo-modules-core-3.0.29.tgz#99287eba52f21784bcb2e4f4edd4fc4c21b5b265"
   integrity sha512-LzipcjGqk8gvkrOUf7O2mejNWugPkf3lmd9GkqL9WuNyeN2fRwU0Dn77e3ZUKI3k6sI+DNwjkq4Nu9fNN9WS7Q==
+  dependencies:
+    invariant "^2.2.4"
+
+expo-modules-core@^2.0.0:
+  version "2.5.0"
+  resolved "https://registry.yarnpkg.com/expo-modules-core/-/expo-modules-core-2.5.0.tgz#cc098607c9b0665e0cbd0a423c9542253caab58a"
+  integrity sha512-aIbQxZE2vdCKsolQUl6Q9Farlf8tjh/ROR4hfN1qT7QBGPl1XrJGnaOKkcgYaGrlzCPg/7IBe0Np67GzKMZKKQ==
   dependencies:
     invariant "^2.2.4"
 
