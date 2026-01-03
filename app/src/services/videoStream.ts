@@ -30,7 +30,7 @@ class VideoStreamService {
   /**
    * Capture a frame from Meta Wearables and send to API
    */
-  async captureAndSendFrame(photoUri: string): Promise<void> {
+  async captureAndSendFrame(photoUri: string): Promise<any> {
     try {
       const timestamp = Date.now();
 
@@ -49,8 +49,8 @@ class VideoStreamService {
         this.frameCallback(frameData);
       }
 
-      // Send to API
-      await this.sendFrameToAPI(frameData);
+      // Send to API and return result
+      return await this.sendFrameToAPI(frameData);
     } catch (error) {
       console.error('Error capturing and sending frame:', error);
       throw error;
@@ -60,7 +60,7 @@ class VideoStreamService {
   /**
    * Send frame to API for processing
    */
-  private async sendFrameToAPI(frameData: FrameData): Promise<void> {
+  private async sendFrameToAPI(frameData: FrameData): Promise<any> {
     try {
       const response = await fetch(`${API_URL}/process-frame`, {
         method: 'POST',
@@ -80,10 +80,39 @@ class VideoStreamService {
       const result = await response.json();
       console.log('API response:', result);
 
+      // Play the audio if available
+      if (result.audio) {
+        await this.playAudio(result.audio);
+      }
+
       return result;
     } catch (error) {
       console.error('Error sending frame to API:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Play audio from base64 encoded data
+   */
+  private async playAudio(audioBase64: string): Promise<void> {
+    try {
+      const { Audio } = await import('expo-av');
+
+      // Create sound from base64 data
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: `data:audio/mp3;base64,${audioBase64}` },
+        { shouldPlay: true }
+      );
+
+      // Cleanup after playback
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (error) {
+      console.error('Error playing audio:', error);
     }
   }
 

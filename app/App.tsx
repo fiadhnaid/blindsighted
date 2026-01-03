@@ -105,7 +105,12 @@ export default function App() {
       streamIntervalRef.current = setInterval(async () => {
         try {
           const photo = await MetaWearables.capturePhoto({ quality: STREAM_IMAGE_QUALITY });
-          await videoStreamService.captureAndSendFrame(photo.uri);
+          const result = await videoStreamService.captureAndSendFrame(photo.uri);
+
+          // Update UI with description
+          if (result && result.description) {
+            setLastDescription(result.description);
+          }
         } catch (error) {
           console.error('Error capturing frame:', error);
         }
