@@ -1,50 +1,51 @@
 {
-  "expo": {
-    "name": "blindsighted",
-    "slug": "blindsighted",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "plugins": [
-      [
-        "expo-meta-wearables",
-        {
-          "appId": "856891110384461",
-          "urlScheme": "blindsighted://",
-          "analyticsOptOut": false
-        }
-      ]
-    ],
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "info.hails.blindsighted",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "17f9e56e-4b3a-4edd-a3cc-9c5fcf1acf0b"
-      }
-    },
-    "owner": "djrhails"
-  }
+    "expo": {
+        "name": "blindsighted",
+        "slug": "blindsighted",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/icon.png",
+        "userInterfaceStyle": "light",
+        "newArchEnabled": true,
+        "plugins": [
+            [
+                "expo-meta-wearables",
+                {
+                    "appId": "856891110384461",
+                    "urlScheme": "blindsighted://",
+                    "analyticsOptOut": false
+                }
+            ]
+        ],
+        "splash": {
+            "image": "./assets/splash-icon.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#ffffff"
+        },
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "info.hails.blindsighted",
+            "infoPlist": {
+                "ITSAppUsesNonExemptEncryption": false
+            }
+        },
+        "android": {
+            "package": "info.hails.blindsighted",
+            "adaptiveIcon": {
+                "foregroundImage": "./assets/adaptive-icon.png",
+                "backgroundColor": "#ffffff"
+            },
+            "edgeToEdgeEnabled": true,
+            "predictiveBackGestureEnabled": false
+        },
+        "web": {
+            "favicon": "./assets/favicon.png"
+        },
+        "extra": {
+            "eas": {
+                "projectId": "17f9e56e-4b3a-4edd-a3cc-9c5fcf1acf0b"
+            }
+        },
+        "owner": "djrhails"
+    }
 }
