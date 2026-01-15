@@ -41,6 +41,39 @@ xcodebuild -project Blindsighted.xcodeproj \
 
 **Note**: The app is based on Meta's CameraAccess sample from the DAT SDK, customized for Blindsighted.
 
+**Adding New Files to Xcode Project**:
+
+When creating new Swift files outside of Xcode, you must add them to the project file:
+
+```bash
+# Install xcodeproj gem (one time)
+gem install xcodeproj
+
+# Add a new file to the project
+cd ios
+xcodeproj --project Blindsighted.xcodeproj add-file Blindsighted/path/to/File.swift --group GroupName
+```
+
+**Common group names:**
+- `Utils` - For utility files like VideoRecorder.swift
+- `ViewModels` - For view model files
+- `Views` - For SwiftUI view files
+- `Views/Components` - For reusable UI components
+
+**Example:**
+```bash
+# Add a new utility file
+xcodeproj --project Blindsighted.xcodeproj add-file Blindsighted/Utils/AudioRecorder.swift --group Utils
+
+# Add a new view model
+xcodeproj --project Blindsighted.xcodeproj add-file Blindsighted/ViewModels/SettingsViewModel.swift --group ViewModels
+
+# Add a new view
+xcodeproj --project Blindsighted.xcodeproj add-file Blindsighted/Views/SettingsView.swift --group Views
+```
+
+**Important**: Always add new files to the Xcode project, or the build will fail with "file not found" errors.
+
 ### API (FastAPI/Python)
 
 ```bash
