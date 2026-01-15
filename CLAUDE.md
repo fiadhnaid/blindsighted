@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Blindsighted is a mobile app with FastAPI backend that provides AI-powered visual assistance for blind/visually impaired users using Meta AI Glasses (Ray-Ban Meta).
 
 **Architecture**: Monorepo with two main components:
-- `app/` - Expo React Native app (TypeScript) that interfaces with Meta AI Glasses
+- `ios/` - Native iOS app (Swift/SwiftUI) using Meta Wearables DAT SDK for Ray-Ban Meta glasses
 - `api/` - FastAPI backend (Python 3.11) that processes frames using Gemini vision and ElevenLabs TTS
 
 **Flow**: Glasses capture photo → App sends base64 image to API → Gemini describes scene → ElevenLabs converts to speech → Audio played to user
@@ -17,7 +17,7 @@ Blindsighted is a mobile app with FastAPI backend that provides AI-powered visua
 ### App (Expo/React Native)
 
 ```bash
-cd app
+cd ios
 yarn install                    # Install dependencies
 yarn start                      # Start Expo dev server
 yarn ios                        # Run on iOS simulator
@@ -49,7 +49,7 @@ yarn link expo-meta-wearables
 
 **Unlink and return to npm version**:
 ```bash
-cd app
+cd ios
 yarn unlink expo-meta-wearables
 yarn install --force
 ```
@@ -129,7 +129,7 @@ Builds are triggered via GitHub Actions. EAS requires authentication.
 
 **Setup**:
 ```bash
-cd app
+cd ios
 npm install -g eas-cli
 eas login
 eas build --platform ios --profile development
@@ -179,3 +179,65 @@ git push origin v1.2.3
 - **Debouncing**: Custom `useDebounce` hook in `app/src/hooks/useDebounce.ts` for UI updates
 - **Modal pattern**: Mock Device Kit info shown in Modal component (`App.tsx:239-257`)
 - **Meta Wearables SDK**: Initialized once on mount, listeners added for connection/recording events
+
+## Troubleshooting
+
+### iOS Build Requirements
+
+- **Xcode**: 26.2+
+- **Swift**: 6.2+
+- **iOS Deployment Target**: 17.0+
+- **CocoaPods**: Latest version
+
+The project is configured for:
+- Swift version: 6.2 (in `ios/blindsighted.xcodeproj/project.pbxproj` and `expo-meta-wearables` podspec)
+- iOS deployment target: 17.0 (matches Meta Wearables SDK requirement)
+
+### Meta Wearables SDK Package Not Found
+
+If you see errors like `Missing package product 'MWDATCore'` or `Missing package product 'MWDATCamera'`:
+
+**Problem**: CocoaPods' Swift Package Manager integration may not automatically resolve packages in Xcode 26.2+.
+
+**Solution 1: Resolve in Xcode** (Recommended)
+1. Open `ios/blindsighted.xcworkspace` in Xcode
+2. Go to **File → Packages → Resolve Package Versions**
+3. Wait for resolution to complete
+4. Clean build folder: **Product → Clean Build Folder** (⇧⌘K)
+5. Build the project
+
+**Solution 2: Manually Add SPM Dependency**
+If automatic resolution fails, manually add the package to the Pods project:
+
+1. Open `ios/blindsighted.xcworkspace` in Xcode
+2. In Project Navigator, select **Pods.xcodeproj**
+3. Select the **Pods** project (not a target)
+4. Go to **Package Dependencies** tab
+5. Click **+** to add a package
+6. Enter: `https://github.com/facebook/meta-wearables-dat-ios`
+7. Set version: **Exact Version 0.3.0**
+8. Add products: **MWDATCore** and **MWDATCamera** to the **ExpoMetaWearables** target
+9. Clean and rebuild
+
+**Solution 3: Clear Derived Data**
+```bash
+cd ios
+rm -rf ~/Library/Developer/Xcode/DerivedData/blindsighted-*
+rm -rf Pods Podfile.lock blindsighted.xcworkspace
+pod install
+```
+
+Then open Xcode and use Solution 1 or 2.
+
+### Swift Version Mismatch
+
+If you see Swift version errors, ensure consistency across:
+- Main project: `ios/blindsighted.xcodeproj` → Build Settings → Swift Language Version = 6.2
+- expo-meta-wearables: `/Users/dh/Projects/github.com/DJRHails/expo-meta-wearables/ios/ExpoMetaWearables.podspec` → `s.swift_version = '6.2'`
+
+After changing, run:
+```bash
+cd ios
+rm -rf Pods Podfile.lock
+pod install
+```

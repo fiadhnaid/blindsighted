@@ -1,0 +1,76 @@
+{
+  "folders": [
+    {
+      "name": "ios (Swift)",
+      "path": "ios"
+    },
+    {
+      "name": "api (Python)",
+      "path": "api"
+    },
+    {
+      "name": "root",
+      "path": "."
+    }
+  ],
+  "settings": {
+    // Swift/iOS settings
+    "[swift]": {
+      "editor.defaultFormatter": "vknabel.vscode-swift-format",
+      "editor.formatOnSave": true,
+      "editor.tabSize": 2
+    },
+
+    // Python settings
+    "python.defaultInterpreterPath": "${workspaceFolder:api (Python)}/.venv/bin/python",
+    "python.analysis.extraPaths": ["${workspaceFolder:api (Python)}"],
+    "[python]": {
+      "editor.defaultFormatter": "charliermarsh.ruff",
+      "editor.formatOnSave": true,
+      "editor.codeActionsOnSave": {
+        "source.fixAll": "explicit",
+        "source.organizeImports": "explicit"
+      }
+    },
+
+    // General editor settings
+    "editor.formatOnSave": true,
+
+    // File exclusions
+    "files.exclude": {
+      "**/__pycache__": true,
+      "**/*.pyc": true,
+      "**/.git": true,
+      "**/.DS_Store": true,
+      "**/DerivedData": true,
+      "**/*.xcworkspace": false,
+      "**/*.xcodeproj": false
+    },
+    "search.exclude": {
+      "**/.venv": true,
+      "**/dist": true,
+      "**/build": true,
+      "**/__pycache__": true,
+      "**/DerivedData": true,
+      "**/Pods": true
+    },
+
+    // Terminal settings
+    "terminal.integrated.cwd": "${workspaceFolder}"
+  },
+  "extensions": {
+    "recommendations": [
+      // Swift/iOS
+      "vknabel.vscode-swift-format",
+      "sswg.swift-lang",
+
+      // Python
+      "charliermarsh.ruff",
+      "ms-python.python",
+      "ms-python.vscode-pylance",
+
+      // General
+      "editorconfig.editorconfig"
+    ]
+  }
+}
