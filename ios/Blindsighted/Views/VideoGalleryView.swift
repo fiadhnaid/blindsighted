@@ -86,13 +86,13 @@ struct VideoGalleryView: View {
     VStack(spacing: 16) {
       Image(systemName: "video.slash")
         .font(.system(size: 60))
-        .foregroundColor(.gray)
+        .foregroundColor(.secondary)
 
       Text("No Recordings")
         .font(.title2)
         .fontWeight(.semibold)
 
-      Text("Start streaming and tap the record button to save videos")
+      Text("Start recording to save videos from your glasses")
         .font(.subheadline)
         .foregroundColor(.secondary)
         .multilineTextAlignment(.center)
@@ -114,8 +114,7 @@ struct VideoThumbnailCard: View {
             .resizable()
             .aspectRatio(contentMode: .fill)
             .frame(height: 180)
-            .clipped()
-            .cornerRadius(12)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         } else {
           Rectangle()
             .fill(Color.gray.opacity(0.3))
@@ -154,6 +153,19 @@ struct VideoThumbnailCard: View {
           Text(video.fileSize.formattedFileSize)
             .font(.caption2)
             .foregroundColor(.secondary)
+        }
+
+        // Location info if available
+        if let locationDesc = video.locationDescription {
+          HStack(spacing: 4) {
+            Image(systemName: "location.fill")
+              .font(.caption2)
+              .foregroundColor(.secondary)
+            Text(locationDesc)
+              .font(.caption2)
+              .foregroundColor(.secondary)
+              .lineLimit(1)
+          }
         }
       }
     }

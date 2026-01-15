@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Blindsighted is a mobile app with FastAPI backend that provides AI-powered visual assistance for blind/visually impaired users using Meta AI Glasses (Ray-Ban Meta).
 
 **Architecture**: Monorepo with two main components:
+
 - `ios/` - Native iOS app (Swift/SwiftUI) using Meta Wearables DAT SDK for Ray-Ban Meta glasses
 - `api/` - FastAPI backend (Python 3.11) that processes frames using Gemini vision and ElevenLabs TTS
 
@@ -33,6 +34,7 @@ xcodebuild -project Blindsighted.xcodeproj \
 ```
 
 **Dependencies**:
+
 - Meta Wearables DAT SDK (integrated via Swift Package Manager in Xcode)
   - `MWDATCore` - Core wearables functionality
   - `MWDATCamera` - Camera streaming and photo capture
@@ -43,33 +45,51 @@ xcodebuild -project Blindsighted.xcodeproj \
 
 **Adding New Files to Xcode Project**:
 
-When creating new Swift files outside of Xcode, you must add them to the project file:
+When creating new Swift files outside of Xcode, you must add them to the project file using the xcodeproj gem.
+
+**One-time setup:**
 
 ```bash
-# Install xcodeproj gem (one time)
-gem install xcodeproj
-
-# Add a new file to the project
-cd ios
-xcodeproj --project Blindsighted.xcodeproj add-file Blindsighted/path/to/File.swift --group GroupName
+gem install xcodeproj --user-install
 ```
 
-**Common group names:**
-- `Utils` - For utility files like VideoRecorder.swift
-- `ViewModels` - For view model files
-- `Views` - For SwiftUI view files
-- `Views/Components` - For reusable UI components
+**To add a file:**
 
-**Example:**
 ```bash
-# Add a new utility file
-xcodeproj --project Blindsighted.xcodeproj add-file Blindsighted/Utils/AudioRecorder.swift --group Utils
+cd ios
+ruby -e "
+require 'xcodeproj'
+project = Xcodeproj::Project.open('Blindsighted.xcodeproj')
+target = project.targets.first
+group = project.main_group.find_subpath('GROUP_PATH', false)
+file_ref = group.new_reference('FILENAME.swift')
+target.add_file_references([file_ref])
+project.save
+"
+```
 
-# Add a new view model
-xcodeproj --project Blindsighted.xcodeproj add-file Blindsighted/ViewModels/SettingsViewModel.swift --group ViewModels
+**Common group paths:**
+| Group Path | Purpose | Example Files |
+|------------|---------|---------------|
+| `Blindsighted/Utils` | Utility classes | VideoRecorder.swift, AudioManager.swift, LocationManager.swift |
+| `Blindsighted/ViewModels` | View models | StreamSessionViewModel.swift |
+| `Blindsighted/Views` | SwiftUI views | StreamView.swift, VideoGalleryView.swift, AudioTestView.swift |
+| `Blindsighted/Views/Components` | Reusable UI components | CircleButton.swift, CustomButton.swift |
 
-# Add a new view
-xcodeproj --project Blindsighted.xcodeproj add-file Blindsighted/Views/SettingsView.swift --group Views
+**Examples:**
+
+```bash
+# Add LocationManager.swift to Utils group
+cd ios
+ruby -e "
+require 'xcodeproj'
+project = Xcodeproj::Project.open('Blindsighted.xcodeproj')
+target = project.targets.first
+group = project.main_group.find_subpath('Blindsighted/Utils', false)
+file_ref = group.new_reference('LocationManager.swift')
+target.add_file_references([file_ref])
+project.save
+"
 ```
 
 **Important**: Always add new files to the Xcode project, or the build will fail with "file not found" errors.
@@ -87,6 +107,7 @@ mypy .                         # Type check
 ```
 
 **Configuration**: Copy `api/.env.example` to `api/.env` and add:
+
 - `OPENROUTER_API_KEY` - Get from https://openrouter.ai/
 - `ELEVENLABS_API_KEY` - Get from https://elevenlabs.io/
 
@@ -105,6 +126,7 @@ docker run -p 8000:8000 --env-file .env blindsighted-api
 The FastAPI backend uses dependency injection via `Annotated` types. Do NOT create global client instances.
 
 **Correct**:
+
 ```python
 from typing import Annotated
 from fastapi import Depends
@@ -118,6 +140,7 @@ async def endpoint(client: Annotated[Client, Depends(get_client)]):
 ```
 
 **Incorrect** (DON'T DO THIS):
+
 ```python
 # Do not create global instances
 global_client = Client()  # ❌ Wrong
@@ -135,11 +158,13 @@ See `api/main.py:22-30` for examples.
 ### iOS Build
 
 iOS builds are performed using Xcode and can be distributed via:
+
 - **Development**: Build directly from Xcode to physical device or simulator
 - **TestFlight**: Archive and upload to App Store Connect for beta testing
 - **App Store**: Production releases via App Store Connect
 
 **Creating an Archive**:
+
 1. In Xcode: Product → Archive
 2. Window → Organizer to manage archives
 3. Distribute App → choose distribution method
@@ -152,6 +177,7 @@ iOS builds are performed using Xcode and can be distributed via:
   - Creates GitHub release with changelog
 
 **Creating a Release**:
+
 ```bash
 git tag v1.2.3
 git push origin v1.2.3
@@ -168,6 +194,17 @@ git push origin v1.2.3
 - **Type hints**: Strict mode enabled, all functions must have type hints
 - **Imports**: Auto-sorted by ruff (isort)
 - **Python version**: 3.11+ required
+
+## Swift Code Style
+
+- **Idiomatic Swift**: Prefer modern SwiftUI patterns over UIKit
+- **UI Components**: Use SwiftUI views exclusively (no `UIViewControllerRepresentable` for UI)
+  - Use `ShareLink` instead of `UIActivityViewController`
+  - Use `PhotosPicker` instead of `UIImagePickerController`
+  - Avoid UIKit UI components in views
+- **Data Models**: UIKit types like `UIImage` are acceptable as data models
+- **Low-level APIs**: Core Graphics, AVFoundation, etc. are fine when no SwiftUI alternative exists
+- **SwiftUI Best Practices**: Use `@StateObject`, `@ObservedObject`, declarative views
 
 ## iOS App Architecture
 
@@ -195,6 +232,59 @@ git push origin v1.2.3
 4. Frames converted to `UIImage` and displayed in real-time
 5. User can capture photos during stream with `capturePhoto()`
 
+### Utility Managers
+
+- **AudioManager** (`ios/Blindsighted/Utils/AudioManager.swift`): Manages audio routing to Meta Wearables
+  - Configures `AVAudioSession` for Bluetooth audio with `.allowBluetoothHFP` and `.allowBluetoothA2DP`
+  - Provides stereo panning control for left/right ear audio testing
+  - Generates sine wave ping sounds for audio channel verification
+  - Monitors audio route changes (device connect/disconnect)
+- **AudioTestView** (`ios/Blindsighted/Views/AudioTestView.swift`): UI for testing audio routing to glasses
+  - Test left, right, or center (both) audio channels
+  - Display current audio route and session configuration
+  - Auto-configures audio session on appear
+- **LocationManager** (`ios/Blindsighted/Utils/LocationManager.swift`): Manages location services for video metadata
+  - Captures GPS coordinates and heading during video recording
+  - Requests "when in use" location permission
+  - Updates every 10 meters with `kCLLocationAccuracyBest`
+  - Provides `currentLocation` and `currentHeading` as published properties
+
+### Dark Mode Support
+
+The app fully supports both light and dark mode appearances. When working with UI:
+
+**Best Practices**:
+- **NEVER use hardcoded backgrounds**: Avoid `.background(Color.white)` or `.background(Color.black)` on views
+- **Use semantic colors**: Prefer `.foregroundColor(.secondary)` over `.foregroundColor(.gray)`
+- **System-adaptive colors**: SwiftUI's semantic colors automatically adapt to appearance:
+  - `.primary` - Primary label color (black in light, white in dark)
+  - `.secondary` - Secondary label color (automatically adjusts)
+  - `.tertiary` - Tertiary label color
+- **Transparent overlays**: Use opacity for backgrounds: `Color.gray.opacity(0.1)` works in both modes
+- **Testing**: Always test UI in both light and dark mode to ensure readability
+
+**Examples**:
+
+```swift
+// ✅ Good - Adapts to dark/light mode
+VStack {
+  Text("Title")
+    .foregroundColor(.primary)
+  Text("Subtitle")
+    .foregroundColor(.secondary)
+}
+.background(Color.gray.opacity(0.1))
+
+// ❌ Bad - Hardcoded colors, breaks in dark mode
+VStack {
+  Text("Title")
+    .foregroundColor(.black)
+  Text("Subtitle")
+    .foregroundColor(.gray)
+}
+.background(Color.white)
+```
+
 ## Troubleshooting
 
 ### iOS Build Requirements
@@ -204,6 +294,7 @@ git push origin v1.2.3
 - **iOS Deployment Target**: 17.0+
 
 The project is configured for:
+
 - Swift version: 6.2 (in `ios/Blindsighted.xcodeproj/project.pbxproj`)
 - iOS deployment target: 17.0 (matches Meta Wearables SDK requirement)
 
@@ -214,6 +305,7 @@ If you see errors like `Missing package product 'MWDATCore'` or `Missing package
 **Problem**: Swift Package Manager may not automatically resolve packages.
 
 **Solution 1: Resolve in Xcode** (Recommended)
+
 1. Open `ios/Blindsighted.xcodeproj` in Xcode
 2. Go to **File → Packages → Resolve Package Versions**
 3. Wait for resolution to complete
@@ -234,6 +326,7 @@ If automatic resolution fails, manually add the package:
 9. Clean and rebuild
 
 **Solution 3: Clear Derived Data**
+
 ```bash
 rm -rf ~/Library/Developer/Xcode/DerivedData/Blindsighted-*
 ```

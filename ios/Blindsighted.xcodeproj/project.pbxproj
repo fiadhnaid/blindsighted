@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		008FF0656A8DB01C0D4F302E /* AudioTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A0F08BAC0F3290D10A14384 /* AudioTestView.swift */; };
+		058F0D7CA24031D448196873 /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86534376D936A121CECE61BE /* LocationManager.swift */; };
+		0734B8D86AB12A1CA1ADC84A /* AudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D44CA48B3558E3BBC2F5925C /* AudioManager.swift */; };
+		2658C6B816296F40AF610C8C /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24CAA0CF5F78EFD5AA49AD32 /* LocationManager.swift */; };
+		3EF0E5D9F4F3939E0328E694 /* AudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97FBF1B9A4137446FC49EE27 /* AudioManager.swift */; };
+		4D7D8EA119AE050C9044FFB2 /* AudioTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0100FB0CC48442082755E922 /* AudioTestView.swift */; };
 		8F2D23802E856711002D0588 /* DebugMenuViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F2D237F2E856711002D0588 /* DebugMenuViewModel.swift */; };
 		8F8F00782E8ACB4600A4BDAF /* WearablesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F8F00772E8ACB4500A4BDAF /* WearablesViewModel.swift */; };
 		8FD96B7F2E6F0A9800F56AB1 /* BlindsightedApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FD96B792E6F0A9800F56AB1 /* BlindsightedApp.swift */; };
@@ -22,11 +28,16 @@
 		8FFD5FF62E8422580035E446 /* CustomButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FFD5FF32E8422580035E446 /* CustomButton.swift */; };
 		8FFD602C2E8433E20035E446 /* MockDeviceKitViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FFD60292E8433E20035E446 /* MockDeviceKitViewModel.swift */; };
 		8FFD602D2E8433E20035E446 /* MockDeviceViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FFD602A2E8433E20035E446 /* MockDeviceViewModel.swift */; };
-		8FFD60342E8434070035E446 /* MediaPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FFD60322E8434070035E446 /* MediaPickerView.swift */; };
 		8FFD60352E8434070035E446 /* StatusText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FFD60332E8434070035E446 /* StatusText.swift */; };
 		8FFD60542E849D0D0035E446 /* RegistrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FFD60532E849D0D0035E446 /* RegistrationView.swift */; };
 		8FFD60602E84A2F70035E446 /* MainAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FFD605F2E84A2F70035E446 /* MainAppView.swift */; };
 		8FFD60612E84A2F70035E446 /* DebugMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FFD605E2E84A2F70035E446 /* DebugMenuView.swift */; };
+		9CDE2A402E6F101100B7F891 /* LiveKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9CDE2A3F2E6F101100B7F891 /* LiveKit */; };
+		E3404C0C2F197F100060330D /* VideoFileManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3404C0A2F197F100060330D /* VideoFileManager.swift */; };
+		E3404C0D2F197F100060330D /* VideoRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3404C0B2F197F100060330D /* VideoRecorder.swift */; };
+		E3404C102F197F280060330D /* VideoPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3404C0F2F197F280060330D /* VideoPlayerView.swift */; };
+		E3404C112F197F280060330D /* VideoGalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3404C0E2F197F280060330D /* VideoGalleryView.swift */; };
+		E3404C132F197F3C0060330D /* VideoGalleryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3404C122F197F3C0060330D /* VideoGalleryViewModel.swift */; };
 		E66D30242E7DA71900470B48 /* MockDeviceKitButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E66D30232E7DA71900470B48 /* MockDeviceKitButton.swift */; };
 		E6A188482EB918740097D0E1 /* StreamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6A188472EB918740097D0E1 /* StreamView.swift */; };
 		E6DA451D2E79A63100E3F688 /* MockDeviceCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DA45182E79A63100E3F688 /* MockDeviceCardView.swift */; };
@@ -59,7 +70,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0100FB0CC48442082755E922 /* AudioTestView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AudioTestView.swift; sourceTree = "<group>"; };
+		24CAA0CF5F78EFD5AA49AD32 /* LocationManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LocationManager.swift; sourceTree = "<group>"; };
+		2A0F08BAC0F3290D10A14384 /* AudioTestView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AudioTestView.swift; sourceTree = "<group>"; };
 		3A3A3A3A3A3A3A3A3A3A3A3A /* Blindsighted.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Blindsighted.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		86534376D936A121CECE61BE /* LocationManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LocationManager.swift; sourceTree = "<group>"; };
 		8F2D237F2E856711002D0588 /* DebugMenuViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugMenuViewModel.swift; sourceTree = "<group>"; };
 		8F8F00772E8ACB4500A4BDAF /* WearablesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WearablesViewModel.swift; sourceTree = "<group>"; };
 		8FD96B6F2E6F0A9800F56AB1 /* StreamSessionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamSessionViewModel.swift; sourceTree = "<group>"; };
@@ -74,11 +89,17 @@
 		8FFD5FF32E8422580035E446 /* CustomButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomButton.swift; sourceTree = "<group>"; };
 		8FFD60292E8433E20035E446 /* MockDeviceKitViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockDeviceKitViewModel.swift; sourceTree = "<group>"; };
 		8FFD602A2E8433E20035E446 /* MockDeviceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockDeviceViewModel.swift; sourceTree = "<group>"; };
-		8FFD60322E8434070035E446 /* MediaPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPickerView.swift; sourceTree = "<group>"; };
 		8FFD60332E8434070035E446 /* StatusText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusText.swift; sourceTree = "<group>"; };
 		8FFD60532E849D0D0035E446 /* RegistrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegistrationView.swift; sourceTree = "<group>"; };
 		8FFD605E2E84A2F70035E446 /* DebugMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugMenuView.swift; sourceTree = "<group>"; };
 		8FFD605F2E84A2F70035E446 /* MainAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainAppView.swift; sourceTree = "<group>"; };
+		97FBF1B9A4137446FC49EE27 /* AudioManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AudioManager.swift; sourceTree = "<group>"; };
+		D44CA48B3558E3BBC2F5925C /* AudioManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AudioManager.swift; sourceTree = "<group>"; };
+		E3404C0A2F197F100060330D /* VideoFileManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoFileManager.swift; sourceTree = "<group>"; };
+		E3404C0B2F197F100060330D /* VideoRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoRecorder.swift; sourceTree = "<group>"; };
+		E3404C0E2F197F280060330D /* VideoGalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoGalleryView.swift; sourceTree = "<group>"; };
+		E3404C0F2F197F280060330D /* VideoPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlayerView.swift; sourceTree = "<group>"; };
+		E3404C122F197F3C0060330D /* VideoGalleryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoGalleryViewModel.swift; sourceTree = "<group>"; };
 		E66D30232E7DA71900470B48 /* MockDeviceKitButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockDeviceKitButton.swift; sourceTree = "<group>"; };
 		E699CC952E8150670052C240 /* BlindsightedTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BlindsightedTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E6A188472EB918740097D0E1 /* StreamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamView.swift; sourceTree = "<group>"; };
@@ -89,7 +110,17 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		E699CC962E8150670052C240 /* BlindsightedTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = BlindsightedTests; sourceTree = "<group>"; };
+		E699CC962E8150670052C240 /* BlindsightedTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = BlindsightedTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -100,6 +131,7 @@
 				8FD96B952E6F0F7D00F56AB1 /* MWDATCore in Frameworks */,
 				8FD96B952E6F0F7D00F56AB2 /* MWDATCamera in Frameworks */,
 				8FD96B952E6F0F7D00F56AB3 /* MWDATMockDevice in Frameworks */,
+				9CDE2A402E6F101100B7F891 /* LiveKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -135,6 +167,7 @@
 		8FD96B702E6F0A9800F56AB1 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				E3404C122F197F3C0060330D /* VideoGalleryViewModel.swift */,
 				8FFD602B2E8433E20035E446 /* MockDeviceKit */,
 				8F2D237F2E856711002D0588 /* DebugMenuViewModel.swift */,
 				8FD96B6F2E6F0A9800F56AB1 /* StreamSessionViewModel.swift */,
@@ -146,6 +179,8 @@
 		8FD96B762E6F0A9800F56AB1 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				E3404C0E2F197F280060330D /* VideoGalleryView.swift */,
+				E3404C0F2F197F280060330D /* VideoPlayerView.swift */,
 				8FFD5FF42E8422580035E446 /* Components */,
 				E6DA451B2E79A63100E3F688 /* MockDeviceKit */,
 				8FFD605E2E84A2F70035E446 /* DebugMenuView.swift */,
@@ -156,6 +191,8 @@
 				8FD96B752E6F0A9800F56AB1 /* StreamSessionView.swift */,
 				E6A188472EB918740097D0E1 /* StreamView.swift */,
 				E6FD3BCD2EB4D53A00E7FE5D /* NonStreamView.swift */,
+				2A0F08BAC0F3290D10A14384 /* AudioTestView.swift */,
+				0100FB0CC48442082755E922 /* AudioTestView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -177,7 +214,6 @@
 		8FFD5FF42E8422580035E446 /* Components */ = {
 			isa = PBXGroup;
 			children = (
-				8FFD60322E8434070035E446 /* MediaPickerView.swift */,
 				8FFD60332E8434070035E446 /* StatusText.swift */,
 				8FFD5FF22E8422580035E446 /* CircleButton.swift */,
 				8FFD5FF32E8422580035E446 /* CustomButton.swift */,
@@ -189,6 +225,12 @@
 		8FFD5FF82E8422B60035E446 /* Utils */ = {
 			isa = PBXGroup;
 			children = (
+				E3404C0A2F197F100060330D /* VideoFileManager.swift */,
+				E3404C0B2F197F100060330D /* VideoRecorder.swift */,
+				86534376D936A121CECE61BE /* LocationManager.swift */,
+				D44CA48B3558E3BBC2F5925C /* AudioManager.swift */,
+				97FBF1B9A4137446FC49EE27 /* AudioManager.swift */,
+				24CAA0CF5F78EFD5AA49AD32 /* LocationManager.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -249,8 +291,6 @@
 				E699CC962E8150670052C240 /* BlindsightedTests */,
 			);
 			name = BlindsightedTests;
-			packageProductDependencies = (
-			);
 			productName = BlindsightedTests;
 			productReference = E699CC952E8150670052C240 /* BlindsightedTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -284,6 +324,7 @@
 			mainGroup = 5A5A5A5A5A5A5A5A5A5A5A5A;
 			packageReferences = (
 				95F7F3332DEF0D91006D1C1A /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */,
+				A1B2C3D42E6F101100B7F892 /* XCRemoteSwiftPackageReference "client-sdk-swift" */,
 			);
 			productRefGroup = 7A7A7A7A7A7A7A7A7A7A7A7A /* Products */;
 			projectDirPath = "";
@@ -322,14 +363,18 @@
 				8FD96B812E6F0A9800F56AB1 /* HomeScreenView.swift in Sources */,
 				8F2D23802E856711002D0588 /* DebugMenuViewModel.swift in Sources */,
 				8FFD60542E849D0D0035E446 /* RegistrationView.swift in Sources */,
-				8FFD60342E8434070035E446 /* MediaPickerView.swift in Sources */,
 				8FFD60352E8434070035E446 /* StatusText.swift in Sources */,
 				8FFD602C2E8433E20035E446 /* MockDeviceKitViewModel.swift in Sources */,
+				E3404C132F197F3C0060330D /* VideoGalleryViewModel.swift in Sources */,
 				8FFD602D2E8433E20035E446 /* MockDeviceViewModel.swift in Sources */,
 				E6DA451D2E79A63100E3F688 /* MockDeviceCardView.swift in Sources */,
 				E6DA451E2E79A63100E3F688 /* CardView.swift in Sources */,
+				E3404C0C2F197F100060330D /* VideoFileManager.swift in Sources */,
+				E3404C0D2F197F100060330D /* VideoRecorder.swift in Sources */,
 				E6DA451F2E79A63100E3F688 /* MockDeviceKitView.swift in Sources */,
 				8FD96B872E6F0A9800F56AB1 /* StreamSessionViewModel.swift in Sources */,
+				E3404C102F197F280060330D /* VideoPlayerView.swift in Sources */,
+				E3404C112F197F280060330D /* VideoGalleryView.swift in Sources */,
 				8FD96B882E6F0A9800F56AB1 /* StreamSessionView.swift in Sources */,
 				8FFD60602E84A2F70035E446 /* MainAppView.swift in Sources */,
 				8FFD60612E84A2F70035E446 /* DebugMenuView.swift in Sources */,
@@ -340,6 +385,12 @@
 				8FFD5FF52E8422580035E446 /* CircleButton.swift in Sources */,
 				8FFD5FF62E8422580035E446 /* CustomButton.swift in Sources */,
 				E6FD3BCE2EB4D53A00E7FE5D /* NonStreamView.swift in Sources */,
+				058F0D7CA24031D448196873 /* LocationManager.swift in Sources */,
+				0734B8D86AB12A1CA1ADC84A /* AudioManager.swift in Sources */,
+				008FF0656A8DB01C0D4F302E /* AudioTestView.swift in Sources */,
+				3EF0E5D9F4F3939E0328E694 /* AudioManager.swift in Sources */,
+				4D7D8EA119AE050C9044FFB2 /* AudioTestView.swift in Sources */,
+				2658C6B816296F40AF610C8C /* LocationManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -630,8 +681,16 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/facebook/meta-wearables-dat-ios";
 			requirement = {
-				kind = exactVersion;
-				version = 0.3.0;
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.3.0;
+			};
+		};
+		A1B2C3D42E6F101100B7F892 /* XCRemoteSwiftPackageReference "client-sdk-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/livekit/client-sdk-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -651,6 +710,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 95F7F3332DEF0D91006D1C1A /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
 			productName = MWDATMockDevice;
+		};
+		9CDE2A3F2E6F101100B7F891 /* LiveKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1B2C3D42E6F101100B7F892 /* XCRemoteSwiftPackageReference "client-sdk-swift" */;
+			productName = LiveKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
