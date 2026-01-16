@@ -59,6 +59,8 @@ uv sync
 uv run example_agent.py dev
 ```
 
+**Test without hardware**: Use the [LiveKit Agents Playground](https://agents-playground.livekit.io/) to test agents with your webcam/microphone instead of glasses.
+
 See [agents/README.md](agents/README.md) for agent development.
 
 ### API Backend (Optional)
@@ -117,7 +119,7 @@ The app needs a few API keys to work:
 - **OpenRouter API Key** (optional, for AI models)
 - **ElevenLabs API Key** (optional, for TTS)
 
-**Need keys for a hackathon?** Reach out and I can provide rate-limited keys so you don't have to sign up for everything. Just message me and I'll get you set up without risking my credit card.
+**Having trouble getting something running?** Reach out and I'll unblock you.
 
 See `ios/Config.xcconfig.example` and `api/.env.example` for configuration details.
 

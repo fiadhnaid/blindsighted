@@ -186,6 +186,14 @@ Backend API → LiveKit Cloud ← Agents
 
 Test agent logic with recorded videos. Replay stored life logs through different agents.
 
+**Pattern 5: Agents Only (Playground Testing)**
+
+```
+Agents Playground (browser) → LiveKit Cloud ← Agents
+```
+
+Use [LiveKit Agents Playground](https://agents-playground.livekit.io/) to test agents with webcam/microphone. Perfect for rapid iteration without iOS app or glasses hardware.
+
 ### Agent Customization
 
 This is where you make it yours. Copy `example_agent.py` and modify:

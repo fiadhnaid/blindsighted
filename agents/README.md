@@ -91,6 +91,117 @@ The agent will:
 4. Listen for user speech and video
 5. Respond with scene descriptions and assistance
 
+## Testing Without Hardware
+
+### LiveKit Agents Playground
+
+You can test your agents without the iOS app or Ray-Ban Meta glasses using the **LiveKit Agents Playground**: https://agents-playground.livekit.io/
+
+This web-based tool provides a browser interface for interacting with your agents via voice and video, perfect for rapid development and debugging.
+
+**When to use it:**
+
+- Developing and testing agent logic without hardware
+- Iterating on prompts and AI model configurations
+- Debugging audio/video processing issues
+- Testing different AI model combinations
+- Demonstrating agent capabilities without physical devices
+
+### How to Use the Playground
+
+**1. Start your agent locally:**
+
+```bash
+cd agents
+uv run python vision_agent.py dev
+```
+
+The agent will connect to your LiveKit Cloud instance and wait for rooms.
+
+**2. Open the Agents Playground:**
+
+Visit https://agents-playground.livekit.io/
+
+**3. Configure connection:**
+
+- **Server URL**: Your LiveKit server URL (e.g., `wss://your-project.livekit.cloud`)
+- **API Key**: Your LiveKit API key (from `.env`)
+- **API Secret**: Your LiveKit API secret (from `.env`)
+
+**4. Connect and interact:**
+
+- Click **"Connect"** to join a room
+- The playground will automatically create a room and your agent will join
+- Grant microphone and camera permissions
+- Start speaking - your agent will respond!
+
+### Playground Features
+
+**Audio Input:**
+- Speak directly into your microphone
+- Agent processes speech via STT pipeline
+- Responses play through your speakers
+
+**Video Input:**
+- Share your webcam for vision-enabled agents
+- Agent receives video frames just like from glasses
+- Test scene description and visual understanding
+
+**Debug Panel:**
+- View real-time transcriptions
+- See agent responses before TTS
+- Monitor connection status and tracks
+- Check latency metrics
+
+### Testing Vision Features
+
+For the vision agent, the playground is excellent for testing:
+
+```bash
+# Start vision agent
+uv run python vision_agent.py dev
+
+# In playground:
+# 1. Enable your webcam
+# 2. Ask: "What do you see?"
+# 3. Agent describes your webcam view
+```
+
+The agent processes webcam frames exactly like it would process glasses camera frames, so you can iterate on vision prompts and logic without hardware.
+
+### Agent Filtering with Playground
+
+If you're using agent filtering (see [Agent Filtering System](#agent-filtering-system)), you'll need to:
+
+**Option 1: Use default agent (no filtering)**
+- Don't set `LIVEKIT_AGENT_NAME` in `.env`
+- Agent accepts all rooms (backward compatibility)
+
+**Option 2: Create rooms with metadata via API**
+- Keep using the backend API to create rooms with `agent_id`
+- Agent only joins rooms with matching metadata
+- Playground connects to pre-existing rooms
+
+**Option 3: Temporarily disable filtering for testing**
+- Comment out the `request_fnc` parameter:
+  ```python
+  # @server.rtc_session(request_fnc=should_accept_job)  # Temporarily disabled
+  @server.rtc_session()
+  async def vision_agent(ctx: JobContext) -> None:
+      ...
+  ```
+
+### Limitations
+
+The playground is for development/testing only:
+
+- No persistent storage (sessions not saved to database)
+- No segment logging to backend
+- Room names are auto-generated
+- Requires exposing LiveKit credentials in browser
+
+For production testing with the full stack (iOS app + glasses + backend), see the main setup guide.
+
 ## Customization
 
 ### Create Your Own Agent
