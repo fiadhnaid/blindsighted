@@ -2,7 +2,8 @@
 
 from datetime import UTC, datetime
 from enum import Enum
-from uuid import UUID, uuid4
+from uuid import UUID
+from uuid_utils.compat import uuid7
 from sqlalchemy import String, DateTime, Integer, Text, Float, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base
@@ -22,7 +23,7 @@ class StreamSession(Base):
 
     __tablename__ = "stream_sessions"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
     room_name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     room_sid: Mapped[str | None] = mapped_column(String(255), nullable=True)
     user_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
@@ -48,8 +49,8 @@ class Recording(Base):
 
     __tablename__ = "recordings"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    session_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
+    session_id: Mapped[UUID] = mapped_column(ForeignKey("stream_sessions.id"), nullable=False, index=True)
     room_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
 
     # R2 storage info
@@ -78,8 +79,8 @@ class Segment(Base):
 
     __tablename__ = "segments"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    session_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
+    session_id: Mapped[UUID] = mapped_column(ForeignKey("stream_sessions.id"), nullable=False, index=True)
     turn_number: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Segment timing
@@ -92,7 +93,7 @@ class Segment(Base):
     audio_frame_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Recording reference (if this segment has a separate recording)
-    recording_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    recording_id: Mapped[UUID | None] = mapped_column(ForeignKey("recordings.id"), nullable=True)
 
     # Metadata
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -109,7 +110,7 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
     device_identifier: Mapped[str] = mapped_column(
         String(255), unique=True, nullable=False, index=True
     )
@@ -129,7 +130,7 @@ class LifelogEntry(Base):
 
     __tablename__ = "lifelog_entries"
 
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
 
     # File identification
