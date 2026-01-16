@@ -127,8 +127,8 @@ async def upload_video(
     altitude: Annotated[float | None, Form()] = None,
     heading: Annotated[float | None, Form()] = None,
     speed: Annotated[float | None, Form()] = None,
-    db: Annotated[AsyncSession, Depends(get_db)] = Depends(get_db),
-    r2_client: Annotated[R2Client, Depends(get_r2_client)] = Depends(get_r2_client),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    r2_client: Annotated[R2Client, Depends(get_r2_client)],
 ) -> UploadResponse:
     """Upload a new lifelog video.
 
