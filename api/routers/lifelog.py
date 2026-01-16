@@ -122,13 +122,13 @@ async def upload_video(
     filename: Annotated[str, Form()],
     recorded_at: Annotated[str, Form()],  # ISO8601 datetime string
     duration_seconds: Annotated[float, Form()],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    r2_client: Annotated[R2Client, Depends(get_r2_client)],
     latitude: Annotated[float | None, Form()] = None,
     longitude: Annotated[float | None, Form()] = None,
     altitude: Annotated[float | None, Form()] = None,
     heading: Annotated[float | None, Form()] = None,
     speed: Annotated[float | None, Form()] = None,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    r2_client: Annotated[R2Client, Depends(get_r2_client)],
 ) -> UploadResponse:
     """Upload a new lifelog video.
 
