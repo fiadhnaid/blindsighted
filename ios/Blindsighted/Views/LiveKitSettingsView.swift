@@ -10,7 +10,6 @@ struct LiveKitSettingsView: View {
     @State private var token: String = ""
     @State private var roomName: String = ""
     @State private var enableVideo: Bool = true
-    @State private var enableAudio: Bool = true
     @State private var showSaved: Bool = false
     @State private var showError: Bool = false
     @State private var errorMessage: String = ""
@@ -37,7 +36,9 @@ struct LiveKitSettingsView: View {
 
                 Section(header: Text("Publishing Options")) {
                     Toggle("Enable Video", isOn: $enableVideo)
-                    Toggle("Enable Audio", isOn: $enableAudio)
+                    Text("Audio is always enabled. Use the mute button during streaming to control the microphone.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
 
                 Section(header: Text("About")) {
@@ -172,7 +173,7 @@ struct LiveKitSettingsView: View {
                 showError = true
                 return
             }
-            config = .apiMode(apiURL: apiURL, enableVideo: enableVideo, enableAudio: enableAudio)
+            config = .apiMode(apiURL: apiURL, enableVideo: enableVideo)
 
         case .manual:
             // Validate LiveKit server URL format
@@ -185,8 +186,7 @@ struct LiveKitSettingsView: View {
                 serverURL: serverURL,
                 token: token,
                 roomName: roomName,
-                enableVideo: enableVideo,
-                enableAudio: enableAudio
+                enableVideo: enableVideo
             )
         }
 
@@ -202,7 +202,6 @@ struct LiveKitSettingsView: View {
         token = ""
         roomName = ""
         enableVideo = true
-        enableAudio = true
     }
 
     private func loadConfiguration() {
@@ -213,7 +212,6 @@ struct LiveKitSettingsView: View {
             token = config.token ?? ""
             roomName = config.roomName ?? ""
             enableVideo = config.enableVideo
-            enableAudio = config.enableAudio
         }
     }
 }

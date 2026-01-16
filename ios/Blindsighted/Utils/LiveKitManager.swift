@@ -44,6 +44,9 @@ class LiveKitManager: ObservableObject {
     @Published var connectionState: LiveKitConnectionState = .disconnected
     @Published var isPublishingVideo: Bool = false
     @Published var isPublishingAudio: Bool = false
+    @Published var isMuted: Bool = false
+    @Published var isReceivingRemoteAudio: Bool = false
+    @Published var remoteParticipantCount: Int = 0
 
     private var room: Room?
     private var videoTrack: LocalVideoTrack?
@@ -58,12 +61,18 @@ class LiveKitManager: ObservableObject {
     private var lastFrameTime: CMTime = .zero
     private var startTime: CMTime?
 
+    // Remote audio tracks (for monitoring agent speech)
+    private var remoteAudioTracks: Set<String> = []
+
     // MARK: - Room Connection
 
     /// Connect to LiveKit room with credentials
     func connect(credentials: LiveKitSessionCredentials, config: LiveKitConfig) async throws {
         self.config = config
         connectionState = .connecting
+
+        // Always configure audio session for duplex audio (mic + speaker)
+        try AudioManager.shared.configureAudioSession(enableRecording: true)
 
         let room = Room()
         self.room = room
@@ -72,14 +81,21 @@ class LiveKitManager: ObservableObject {
         setupRoomHandlers(room)
 
         do {
-            // Connect to room
+            // Connect to room with auto-subscribe enabled to receive agent audio
             try await room.connect(
                 url: credentials.serverURL,
-                token: credentials.token
+                token: credentials.token,
+                connectOptions: ConnectOptions(
+                    autoSubscribe: true  // Automatically subscribe to remote tracks (agent speech)
+                )
             )
 
             connectionState = .connected
             NSLog("[LiveKit] Connected to room: \(credentials.roomName)")
+
+            // Always enable microphone immediately after connection
+            try await startPublishingAudio()
+            NSLog("[LiveKit] Microphone enabled and publishing")
         } catch {
             connectionState = .error("Connection failed: \(error.localizedDescription)")
             throw error
@@ -194,10 +210,6 @@ class LiveKitManager: ObservableObject {
             throw LiveKitError.notConnected
         }
 
-        guard let config = config, config.enableAudio else {
-            return
-        }
-
         do {
             // Enable microphone track
             try await room.localParticipant.setMicrophone(enabled: true)
@@ -206,9 +218,41 @@ class LiveKitManager: ObservableObject {
             if let publication = room.localParticipant.localAudioTracks.first {
                 self.audioTrack = publication.track as? LocalAudioTrack
                 isPublishingAudio = true
+                isMuted = false
             }
         } catch {
             throw LiveKitError.audioPublishFailed
+        }
+    }
+
+    /// Mute the microphone (stop sending audio)
+    func mute() async throws {
+        guard let audioTrack = audioTrack else {
+            return
+        }
+
+        try await audioTrack.mute()
+        isMuted = true
+        NSLog("[LiveKit] Microphone muted")
+    }
+
+    /// Unmute the microphone (resume sending audio)
+    func unmute() async throws {
+        guard let audioTrack = audioTrack else {
+            return
+        }
+
+        try await audioTrack.unmute()
+        isMuted = false
+        NSLog("[LiveKit] Microphone unmuted")
+    }
+
+    /// Toggle mute state
+    func toggleMute() async throws {
+        if isMuted {
+            try await unmute()
+        } else {
+            try await mute()
         }
     }
 
@@ -308,10 +352,52 @@ extension LiveKitManager: RoomDelegate {
     }
 
     nonisolated func room(_ room: Room, participant: RemoteParticipant, didSubscribeTrack publication: RemoteTrackPublication) {
-        // Handle remote participant track subscription if needed
+        Task { @MainActor in
+            if publication.kind == .audio {
+                NSLog("[LiveKit] Subscribed to remote audio track from participant: \(participant.identity)")
+                self.remoteAudioTracks.insert(publication.sid.stringValue)
+                self.isReceivingRemoteAudio = !self.remoteAudioTracks.isEmpty
+
+                // Audio playback is automatic for subscribed remote audio tracks
+                // The LiveKit SDK will route audio to the system audio output
+                if let audioTrack = publication.track as? RemoteAudioTrack {
+                    NSLog("[LiveKit] Remote audio track enabled, playback is automatic")
+                }
+            } else if publication.kind == .video {
+                NSLog("[LiveKit] Subscribed to remote video track from participant: \(participant.identity)")
+            }
+        }
     }
 
     nonisolated func room(_ room: Room, participant: RemoteParticipant, didUnsubscribeTrack publication: RemoteTrackPublication) {
-        // Handle remote participant track unsubscription if needed
+        Task { @MainActor in
+            if publication.kind == .audio {
+                NSLog("[LiveKit] Unsubscribed from remote audio track from participant: \(participant.identity)")
+                self.remoteAudioTracks.remove(publication.sid.stringValue)
+                self.isReceivingRemoteAudio = !self.remoteAudioTracks.isEmpty
+            } else if publication.kind == .video {
+                NSLog("[LiveKit] Unsubscribed from remote video track from participant: \(participant.identity)")
+            }
+        }
+    }
+
+    nonisolated func room(_ room: Room, participantDidConnect participant: RemoteParticipant) {
+        Task { @MainActor in
+            NSLog("[LiveKit] Remote participant connected: \(participant.identity)")
+            self.remoteParticipantCount = room.remoteParticipants.count
+        }
+    }
+
+    nonisolated func room(_ room: Room, participantDidDisconnect participant: RemoteParticipant) {
+        Task { @MainActor in
+            NSLog("[LiveKit] Remote participant disconnected: \(participant.identity)")
+            self.remoteParticipantCount = room.remoteParticipants.count
+
+            // Clean up audio tracks from disconnected participant
+            for publication in participant.audioTracks {
+                self.remoteAudioTracks.remove(publication.sid.stringValue)
+            }
+            self.isReceivingRemoteAudio = !self.remoteAudioTracks.isEmpty
+        }
     }
 }

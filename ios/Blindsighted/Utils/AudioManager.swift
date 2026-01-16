@@ -34,17 +34,29 @@ class AudioManager: ObservableObject {
   }
 
   /// Configure audio session for Bluetooth audio routing to Meta Wearables
-  func configureAudioSession() throws {
+  /// - Parameter enableRecording: If true, configures for duplex audio (recording + playback) for LiveKit
+  func configureAudioSession(enableRecording: Bool = false) throws {
     let audioSession = AVAudioSession.sharedInstance()
 
     do {
-      // Set category to playback with default mode
-      // Playback category automatically routes to Bluetooth devices (including Meta Wearables)
-      // No options needed - adding Bluetooth options causes error -50
-      try audioSession.setCategory(
-        .playback,
-        mode: .default
-      )
+      if enableRecording {
+        // For LiveKit: Use playAndRecord category for simultaneous mic input and speaker output
+        // This allows microphone publishing to agent AND receiving agent speech
+        try audioSession.setCategory(
+          .playAndRecord,
+          mode: .voiceChat,  // Optimized for voice communication
+          options: [.allowBluetooth, .allowBluetoothA2DP]  // Enable Bluetooth routing
+        )
+        NSLog("[AudioManager] Audio session configured for duplex audio (recording + playback)")
+      } else {
+        // For simple playback: Use playback category
+        // Playback category automatically routes to Bluetooth devices (including Meta Wearables)
+        try audioSession.setCategory(
+          .playback,
+          mode: .default
+        )
+        NSLog("[AudioManager] Audio session configured for playback only")
+      }
 
       // Activate the audio session
       try audioSession.setActive(true)

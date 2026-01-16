@@ -14,33 +14,31 @@ struct LiveKitConfig: Codable {
     let token: String?           // Manual token (manual mode only)
     let roomName: String?        // Manual room name (manual mode only)
     let enableVideo: Bool
-    let enableAudio: Bool
+    // Audio is always enabled - use mute button to control during streaming
 
     // MARK: - Initializers
 
     /// Create API mode configuration
-    static func apiMode(apiURL: String, enableVideo: Bool = true, enableAudio: Bool = true) -> LiveKitConfig {
+    static func apiMode(apiURL: String, enableVideo: Bool = true) -> LiveKitConfig {
         return LiveKitConfig(
             mode: .api,
             apiURL: apiURL,
             serverURL: nil,
             token: nil,
             roomName: nil,
-            enableVideo: enableVideo,
-            enableAudio: enableAudio
+            enableVideo: enableVideo
         )
     }
 
     /// Create manual mode configuration
-    static func manualMode(serverURL: String, token: String, roomName: String, enableVideo: Bool = true, enableAudio: Bool = true) -> LiveKitConfig {
+    static func manualMode(serverURL: String, token: String, roomName: String, enableVideo: Bool = true) -> LiveKitConfig {
         return LiveKitConfig(
             mode: .manual,
             apiURL: nil,
             serverURL: serverURL,
             token: token,
             roomName: roomName,
-            enableVideo: enableVideo,
-            enableAudio: enableAudio
+            enableVideo: enableVideo
         )
     }
 
