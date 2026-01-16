@@ -21,7 +21,7 @@ struct StartSessionRequest: Codable {
 
 /// Response from /sessions/start endpoint
 struct StartSessionResponse: Codable {
-    let sessionId: Int
+    let sessionId: String  // UUID serialized as string
     let roomName: String
     let token: String
     let livekitUrl: String
@@ -36,7 +36,7 @@ struct StartSessionResponse: Codable {
 
 /// Request to stop a streaming session
 struct StopSessionRequest: Codable {
-    let sessionId: Int
+    let sessionId: String  // UUID serialized as string
 
     enum CodingKeys: String, CodingKey {
         case sessionId = "session_id"
@@ -103,7 +103,7 @@ class APIClient: ObservableObject {
     }
 
     /// Stop an active streaming session
-    func stopSession(sessionId: Int) async throws -> StopSessionResponse {
+    func stopSession(sessionId: String) async throws -> StopSessionResponse {
         let request = StopSessionRequest(sessionId: sessionId)
         return try await post(endpoint: "/sessions/stop", body: request)
     }

@@ -1,16 +1,17 @@
 """API routes for streaming session management."""
 
+from datetime import UTC
 from typing import Annotated
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import UTC, datetime
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
-from models import StreamSession, SessionStatus
+from models import SessionStatus, StreamSession
 from services.lk import LiveKitService
-
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -26,7 +27,7 @@ class StartSessionRequest(BaseModel):
 class StartSessionResponse(BaseModel):
     """Response after starting a session."""
 
-    session_id: int
+    session_id: UUID
     room_name: str
     token: str
     livekit_url: str
@@ -35,7 +36,7 @@ class StartSessionResponse(BaseModel):
 class StopSessionRequest(BaseModel):
     """Request to stop a streaming session."""
 
-    session_id: int
+    session_id: UUID
 
 
 def get_livekit_service() -> LiveKitService:

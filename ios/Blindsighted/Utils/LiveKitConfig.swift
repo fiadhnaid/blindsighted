@@ -149,7 +149,7 @@ struct LiveKitConfig: Codable {
 
 /// Session credentials from API
 struct LiveKitSessionCredentials {
-    let sessionId: Int?  // Optional: only set when using API mode
+    let sessionId: String?  // Optional: only set when using API mode (UUID as string)
     let serverURL: String
     let token: String
     let roomName: String

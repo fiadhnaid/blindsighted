@@ -48,7 +48,7 @@ class StreamSessionViewModel: ObservableObject {
   @Published var isMicrophoneMuted: Bool = false
   private var liveKitManager: LiveKitManager?
   private var liveKitConfig: LiveKitConfig?
-  private var liveKitSessionId: Int?  // Track session ID for cleanup
+  private var liveKitSessionId: String?  // Track session ID for cleanup (UUID as string)
   private var apiClient: APIClient?
   private var frameCount: Int64 = 0
 
