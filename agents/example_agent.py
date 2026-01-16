@@ -1,6 +1,7 @@
 """LiveKit Agent for vision-based scene description using streaming STT-LLM-TTS pipeline."""
 
 import asyncio
+import logging
 
 from livekit import rtc
 from livekit.agents import (
@@ -16,10 +17,13 @@ from livekit.agents import (
 )
 from livekit.agents.metrics.base import TTSMetrics
 from livekit.agents.voice.events import ConversationItemAddedEvent, SpeechCreatedEvent
-from livekit.plugins import deepgram, elevenlabs, openai, silero
+from livekit.plugins import deepgram, openai, silero
 from loguru import logger
 
 from config import settings
+
+# Enable debug logging
+logging.basicConfig(level=logging.INFO)
 
 
 class VisionAssistant(Agent):
@@ -167,13 +171,12 @@ async def entrypoint(ctx: JobContext) -> None:
 
     await ctx.connect()
 
-    # Create ElevenLabs TTS instance
-    tts_instance = elevenlabs.TTS(
-        api_key=settings.elevenlabs_api_key,
-        voice_id=settings.elevenlabs_voice_id,
-        model="eleven_flash_v2_5",
-        # Keep auto_mode at default (True) to use ElevenLabs' optimized streaming
-        apply_text_normalization="on",  # Normalize newlines and other text artifacts
+    # Create Deepgram TTS instance
+    tts_instance = deepgram.TTS(
+        api_key=settings.deepgram_api_key,
+        model="aura-asteria-en",
+        encoding="linear16",
+        sample_rate=24000,
     )
 
     # Configure the agent session with STT-LLM-TTS pipeline
@@ -189,14 +192,14 @@ async def entrypoint(ctx: JobContext) -> None:
             api_key=settings.openrouter_api_key,
             max_completion_tokens=500,  # Ensure longer responses aren't truncated
         ),
-        # Text-to-Speech: Use ElevenLabs with logging
+        # Text-to-Speech: Use Deepgram TTS
         tts=tts_instance,
         # Voice Activity Detection
         vad=silero.VAD.load(),
         # Interruption settings - ensure user doesn't accidentally interrupt during pauses
         min_interruption_duration=1.0,  # Require 1 second of speech to interrupt (default 0.5)
         allow_interruptions=True,
-        # Keep default tts_text_transforms (filter_markdown, filter_emoji) to normalize text
+        use_tts_aligned_transcript=True,
     )
 
     # Start the agent session
