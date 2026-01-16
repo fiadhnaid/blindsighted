@@ -10,6 +10,9 @@
 .env*
 !.env*.example
 
+# # Old expo
+# .expo/
+
 # uv
 .uv/
 # Agent environment variables
