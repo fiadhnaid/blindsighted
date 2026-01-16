@@ -22,6 +22,7 @@ dependencies = [
     "livekit>=0.18.1",
     "livekit-agents==0.12.3",
     "loguru==0.7.3",
+    "python-multipart==0.0.20",
 ]
 
 [project.optional-dependencies]
