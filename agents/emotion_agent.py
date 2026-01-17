@@ -712,9 +712,11 @@ Remember: When SHOULD_SPEAK is true, write the DESCRIPTION as if you are the voi
 
         try:
             logger.info(f"🔊 GLASSES: {text}")
-            await self._session.generate_reply(instructions=f"Say: {text}")
+            # Direct TTS, no LLM
+            await self._session.say(text, allow_interruptions=False)
         except Exception as e:
             logger.error(f"Error sending to glasses: {e}")
+
 
     def set_session(self, session: AgentSession) -> None:
         """Set the session reference for TTS output."""
@@ -820,7 +822,7 @@ async def entrypoint(ctx: JobContext) -> None:
     agent.set_session(session)  # Provide session reference for TTS output
 
     # Generate initial greeting
-    await session.generate_reply(instructions="Say 'non-verbal cues description started'.")
+    await session.say("Non-verbal cues description started.", allow_interruptions=False)
 
     logger.info("Emotion detection agent session started successfully")
 
@@ -835,5 +837,4 @@ if __name__ == "__main__":
             api_secret=settings.livekit_api_secret,
         )
     )
-
 
