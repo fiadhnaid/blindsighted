@@ -595,33 +595,98 @@ Respond with ONLY the JSON object, no markdown, no code blocks, no explanation."
                 for i, desc in enumerate(descriptions)
             )
 
-            contextual_prompt = """You are analyzing a temporal sequence of frame descriptions to help a blind person understand social cues. Your task is to:
-1. Understand what is currently happening in the scene (based on the latest frames)
-2. Identify any significant changes or patterns across the full sequence
-3. Consider the progression and order of frames, not just the latest vs previous
-4. Focus on key social signals: emotion changes, nodding (is_nodding), phone usage (on_phone), person entering/leaving (person_presence)
+            contextual_prompt = """You are analyzing a sequence of JSON analysis results from video frame processing.
+Your task is to compare the most recent JSON (last one) with the previous JSONs to detect if there are meaningful changes that should be spoken aloud to a visually impaired user wearing smart glasses.
 
-You must respond with EXACTLY this format:
+INPUT:
+You will receive 5 frame descriptions in temporal order. The last frame is the most recent analysis.
+Each frame description contains:
+- emotion: The person's emotional state
+- person_presence: Whether a person is present, entered, left, or absent
+- is_nodding: Whether the person is nodding their head (boolean)
+- on_phone: Whether the person is looking at/using a phone (boolean)
+- confidence: Confidence score (0.0 to 1.0)
+- timestamp: When the frame was captured
+
+YOUR TASK:
+1. Compare all frames with the previous frames
+2. Determine if there is a SIGNIFICANT change that warrants speaking to the user
+3. If there is a significant change, write the EXACT words that should be spoken through the glasses
+4. Ignore minor variations in confidence scores or timestamp differences
+5. It is very important to let the user know what is happening in the scene.
+6. The user is blind and relies on the glasses to know what is happening.
+7. The user is not able to see the screen of the glasses, so they rely on the voice to know what is happening.
+8. The user is not able to see the screen of the glasses, so they rely on the voice to know what is happening.
+9. The user is not able to see the screen of the glasses, so they rely on the voice to know what is happening.
+13. Let the user know what is happening in the scene.
+14. Be concise and to the point in your output, we prefer short and concise descriptions.
+15. Be friendly and engaging in your output.
+OUTPUT FORMAT:
+You must respond with EXACTLY this format (no other text):
 
 SHOULD_SPEAK: true
-DESCRIPTION: [1-2 sentence description]
+DESCRIPTION: [the exact words to speak - written as if talking directly to the user]
 
 OR
 
 SHOULD_SPEAK: false
-DESCRIPTION: [1-2 sentence description]
+DESCRIPTION: [brief note for logging - this will NOT be spoken]
 
-Set SHOULD_SPEAK to true ONLY if:
-- A significant change occurred (emotion shift, person entered/left, engagement changed)
-- There's important social cue information the blind user should know RIGHT NOW
-- Something noteworthy is happening that warrants interrupting the user
+CRITICAL: When SHOULD_SPEAK is true, the DESCRIPTION is the EXACT text that will be converted to speech and played through the user's Ray-Ban glasses. Write it as if you are speaking directly to the blind user in a natural, conversational way. 
+
+
+CRITICAL: KEEP DESCRIPTIONS SHORT AND CONCISE. Maximum 1 sentence. Be brief and direct. The user needs quick, actionable information, not lengthy explanations.
+
+RULES FOR SHOULD_SPEAK:
+
+Set SHOULD_SPEAK to true ONLY if there is a SIGNIFICANT change:
+- The person's emotion clearly changed (e.g., "neutral" -> "happy", "engaged" -> "bored", "calm" -> "frustrated")
+- Person presence status changed (e.g., "absent" -> "present", "present" -> "left")
+- Behavioral state changed (e.g., is_nodding: false -> true, on_phone: false -> true)
+- A behavior stopped (e.g., was nodding and now stopped, was on phone and now put it away)
+- The person entered or left the frame
 
 Set SHOULD_SPEAK to false if:
-- Nothing significant has changed
-- The current state is similar to recent frames
-- The information is not urgent or important enough to speak
+- The JSONs are essentially the same across all 5 frames
+- Only confidence scores changed slightly
+- Only timestamps differ
+- Minor variations in emotion that might be due to detection uncertainty (e.g., "happy" vs "smiling" when both indicate positive emotion)
+- The person was already absent and remains absent
+- The state in frame 5 matches the state in most of frames 1-4 (no new change)
+- The change is too subtle or uncertain to be meaningful
 
-The DESCRIPTION should describe what's currently happening and any relevant changes."""
+DESCRIPTION GUIDELINES:
+
+When SHOULD_SPEAK is true (THIS WILL BE SPOKEN TO THE USER):
+- MUST be SHORT and CONCISE - maximum 1 sentence, ideally under 10 words
+- Write as if speaking directly to the user in a natural, conversational tone
+- Be precise and specific about what changed
+- Use simple, clear language suitable for audio playback
+- State what changed clearly and briefly (e.g., "The person started nodding" not "Nodding state changed from false to true")
+- Examples of good SHORT speech output:
+  * "The person started nodding."
+  * "They're looking at their phone now."
+  * "The person is smiling now."
+  * "They stopped nodding."
+  * "They put away their phone."
+  * "Someone new entered."
+  * "The person left."
+
+- AVOID lengthy descriptions like:
+  * "The person's emotional state has transitioned from a neutral expression to one that appears happy, and they are now displaying a smile." (TOO LONG)
+  * Instead say: "The person is smiling now." (SHORT)
+
+When SHOULD_SPEAK is false (THIS IS FOR LOGGING ONLY, NOT SPOKEN):
+- Briefly note the current stable state
+- Examples: "No changes detected." or "Person remains neutral."
+
+COMPARISON LOGIC:
+- Compare the last frames against the pattern/consensus of the previous frames
+- If the reference frames show a stable state (e.g., all show "neutral" emotion, not nodding) and the last frame differs (e.g., "happy", nodding), that's a change → SHOULD_SPEAK: true
+- If the reference frames already showed variation and last frame matches one of those states, that's NOT a new change → SHOULD_SPEAK: false
+- If the final frame matches the majority state of previous frames, that's NOT a change (it's continuation) → SHOULD_SPEAK: false
+
+Remember: When SHOULD_SPEAK is true, write the DESCRIPTION as if you are the voice speaking directly to the blind user through their glasses. Be natural, clear, helpful, and MOST IMPORTANTLY - KEEP IT SHORT AND CONCISE."""
 
             logger.debug(f"Change detection input:\n{descriptions_text}")
 
