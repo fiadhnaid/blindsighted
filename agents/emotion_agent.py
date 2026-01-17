@@ -94,6 +94,8 @@ class EmotionAssistant(Agent):
         self._video_stream: rtc.VideoStream | None = None
         self._tasks: list[asyncio.Task] = []
         self._last_analysis_dict: dict | None = None
+        self._periodic_analysis_task: asyncio.Task | None = None
+        self._analysis_interval = 1  # seconds
         logger.info("EmotionAssistant initialized (single person focus)")
 
     async def on_enter(self) -> None:
@@ -128,6 +130,122 @@ class EmotionAssistant(Agent):
             if track.kind == rtc.TrackKind.KIND_VIDEO:
                 logger.info(f"New video track subscribed from {participant.identity}")
                 self._create_video_stream(track)
+
+        # Start periodic frame analysis (every 0.5 seconds)
+        self._start_periodic_analysis()
+        logger.info(f"Started periodic analysis (interval: {self._analysis_interval}s)")
+
+    async def on_leave(self) -> None:
+        """Called when agent leaves the room. Clean up periodic analysis."""
+        logger.info("Agent leaving room, stopping periodic analysis")
+        self._stop_periodic_analysis()
+
+    async def _periodic_frame_analyzer(self) -> None:
+        """
+        Continuously analyzes the latest video frame every 1 seconds.
+
+        This runs independently of voice interactions - the frame is analyzed
+        on a fixed schedule rather than when the user speaks.
+        """
+        logger.info("Periodic frame analyzer started")
+        analysis_count = 0
+
+        while True:
+            try:
+                await asyncio.sleep(self._analysis_interval)
+
+                if self._latest_frame is None:
+                    logger.debug("No frame available for periodic analysis")
+                    continue
+
+                analysis_count += 1
+                logger.info(f"Running periodic analysis #{analysis_count}")
+
+                # ============================================================
+                # TODO: REPLACE THIS WITH TEAMMATE'S REAL LLM CALL FUNCTION
+                # ============================================================
+                # The real function should:
+                # 1. Take self._latest_frame as input (rtc.VideoFrame)
+                # 2. Call your LLM/vision model to analyze the frame
+                # 3. Return structured emotion/expression data
+                # 4. Handle rate limiting and errors gracefully
+                #
+                # Example signature:
+                # result = await analyze_frame_with_llm(self._latest_frame)
+                # ============================================================
+
+                result = await self._dummy_llm_call(self._latest_frame)
+
+                # ============================================================
+                # TODO: HANDLE THE RESULT
+                # ============================================================
+                # Options:
+                # 1. Send to iOS via data message:
+                #    await ctx.room.local_participant.publish_data(
+                #        json.dumps(result).encode(), topic="emotion_analysis"
+                #    )
+                #
+                # 2. Store for later use:
+                #    self._last_analysis_result = result
+                #
+                # 3. Log only (current behavior):
+                #    logger.info(f"Analysis result: {result}")
+                # ============================================================
+
+                logger.info(f"Periodic analysis result: {result}")
+
+            except asyncio.CancelledError:
+                logger.info("Periodic frame analyzer stopped")
+                break
+            except Exception as e:
+                logger.error(f"Error in periodic frame analysis: {e}")
+                # Continue running even if one analysis fails
+                continue
+
+    async def _dummy_llm_call(self, frame: rtc.VideoFrame) -> dict:
+        """
+        DUMMY PLACEHOLDER - Replace with real LLM call from teammate.
+
+        This function simulates calling an LLM/vision model to analyze a video frame.
+
+        Args:
+            frame: The latest video frame from the glasses camera
+
+        Returns:
+            Dict with analysis results (structure TBD by teammate)
+
+        TODO: Replace this entire function with:
+        - Real API call to your vision/emotion detection model
+        - Proper error handling for rate limits (429 errors)
+        - Retry logic with exponential backoff
+        - Response validation and parsing
+        """
+        # Simulate processing time
+        await asyncio.sleep(0.01)
+
+        # Return dummy data
+        return {
+            "status": "dummy_analysis",
+            "timestamp": asyncio.get_event_loop().time(),
+            "frame_available": frame is not None,
+            "message": "Replace _dummy_llm_call() with real LLM integration"
+        }
+
+    def _start_periodic_analysis(self) -> None:
+        """Start the periodic frame analysis background task."""
+        if self._periodic_analysis_task is not None:
+            logger.warning("Periodic analysis already running")
+            return
+
+        self._periodic_analysis_task = asyncio.create_task(self._periodic_frame_analyzer())
+        self._tasks.append(self._periodic_analysis_task)
+
+    def _stop_periodic_analysis(self) -> None:
+        """Stop the periodic frame analysis background task."""
+        if self._periodic_analysis_task is not None:
+            self._periodic_analysis_task.cancel()
+            self._periodic_analysis_task = None
+            logger.info("Stopped periodic frame analysis")
 
     async def on_user_turn_completed(
         self, chat_ctx: llm.ChatContext, new_message: llm.ChatMessage
