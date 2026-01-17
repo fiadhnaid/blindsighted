@@ -197,6 +197,9 @@ The [JSON] section is for programmatic access.
         # Start periodic frame analysis (every 0.5 seconds)
         self._start_periodic_analysis()
         logger.info(f"Started periodic analysis (interval: {self._analysis_interval}s)")
+        logger.info("=" * 70)
+        logger.info("✓ Emotion agent initialization complete - ready to analyze frames")
+        logger.info("=" * 70)
 
     async def on_leave(self) -> None:
         """Called when agent leaves the room. Clean up periodic analysis."""
