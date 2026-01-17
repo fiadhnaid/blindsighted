@@ -80,66 +80,43 @@ class EmotionAssistant(Agent):
     FRAME_SAMPLING_INTERVAL = 1.0  # seconds between frame samples
     FRAME_QUEUE_MAX_SIZE = 10  # maximum number of frame descriptions to store
 
-    # Shared analysis instructions
-    _ANALYSIS_BASE_INSTRUCTIONS = """You are a facial expression and behavior analysis AI assistant. Your primary task is to analyze images
-(photos or video frames) and provide comprehensive insights about THE PERSON DIRECTLY IN FRONT OF THE CAMERA.
+    def __init__(self) -> None:
+        # Main agent instructions (for voice conversation - returns description + JSON)
+        # Uses the same schema as the periodic frame analysis for consistency
+        conversation_instructions = """You are analyzing a video frame to help a blind person understand social cues during a conversation.
 
 CRITICAL: Focus ONLY on the main subject - the person closest to the camera, centered in the frame, or the person the camera is clearly focused on.
 Ignore other people in the background or periphery. Analyze only the primary subject.
-
-Analyze the MAIN SUBJECT carefully:
-- Facial expressions (smile, frown, raised eyebrows, etc.)
-- Eye contact and gaze direction (especially if looking at camera)
-- Head position and orientation
-- Body language visible in frame
-- Overall energy and engagement level
-- Subtle micro-expressions if visible"""
-
-    _JSON_SCHEMA = """{
-    "apparent_emotion": string, // e.g. "relaxed", "tense", "bored", "amused", "frustrated", "uncertain", "happy", "sad", "angry", "surprised", "neutral"
-    "energy_level": string, // one of ["low","medium","high"]
-    "engagement": string, // one of ["disengaged","neutral","attentive","very_attentive"]
-    "gaze_direction": string, // one of ["camera","left","right","up","down","unfocused","unknown"]
-    "facial_cues": [string], // short phrases, e.g. ["slight smile","raised eyebrows","tight jaw","furrowed brow","wide eyes"]
-    "gestures": [
-        {
-            "type": string, // e.g. "nod","head_shake","lean_in","eyebrow_raise","smile_change","frown","eye_roll"
-            "description": string, // short natural-language description
-            "confidence": number // 0.0 to 1.0
-        }
-    ],
-    "confidence": number, // 0.0 to 1.0 overall confidence in your interpretation
-    "summary": string // max 2 sentences, informal human-friendly description
-}"""
-
-    def __init__(self) -> None:
-        # Main agent instructions (for conversation - returns description + JSON)
-        conversation_instructions = f"""{self._ANALYSIS_BASE_INSTRUCTIONS}
 
 IMPORTANT: You must respond with BOTH a natural language description AND a JSON object.
 
 Format your response as:
 [DESCRIPTION]
-Provide a brief, natural 2-3 sentence description of what you observe about the person's facial expression, energy, engagement, and overall demeanor. Be conversational and human-friendly. This will be read aloud to the user.
+Provide a brief, natural 2-3 sentence description of what you observe about the person's emotion, whether they're nodding, if they're on their phone, and any other relevant social cues. Be conversational and human-friendly. This will be read aloud to the user.
 
 [JSON]
-{self._JSON_SCHEMA}
+{
+    "emotion": string,  // One of: "happy", "smiling", "engaged", "interested", "amused", "sad", "frustrated", "confused", "bored", "annoyed", "angry", "neutral", "calm", "focused", "surprised", "embarrassed", "uncertain", "confident", "unknown"
+    "person_presence": string,  // One of: "present", "entered", "left", "absent"
+    "is_nodding": boolean,  // true if person is nodding their head, false otherwise
+    "on_phone": boolean,  // true if person is looking at or using a phone/device, false otherwise
+    "confidence": number,  // 0.0 to 1.0, your confidence in this analysis
+    "timestamp": string  // ISO 8601 timestamp
+}
 
 If no person is visible or the main subject is unclear, return:
 [DESCRIPTION]
 I cannot see a clear person or face in the image right now.
 
 [JSON]
-{{
-    "apparent_emotion": "unknown",
-    "energy_level": "unknown",
-    "engagement": "unknown",
-    "gaze_direction": "unknown",
-    "facial_cues": [],
-    "gestures": [],
+{
+    "emotion": "unknown",
+    "person_presence": "absent",
+    "is_nodding": false,
+    "on_phone": false,
     "confidence": 0.0,
-    "summary": "No clear person or face visible in the image"
-}}
+    "timestamp": "[current ISO timestamp]"
+}
 
 The [DESCRIPTION] section will be read aloud, so make it natural and conversational.
 The [JSON] section is for programmatic access.
@@ -148,7 +125,6 @@ The [JSON] section is for programmatic access.
         self._latest_frame: rtc.VideoFrame | None = None
         self._video_stream: rtc.VideoStream | None = None
         self._tasks: list[asyncio.Task] = []
-        self._last_analysis_dict: dict | None = None
 
         # Frame processing pipeline
         self._frame_descriptions_queue: deque[dict] = deque(maxlen=self.FRAME_QUEUE_MAX_SIZE)
@@ -246,38 +222,9 @@ The [JSON] section is for programmatic access.
                 analysis_count += 1
                 logger.info(f"Running periodic analysis #{analysis_count}")
 
-                # ============================================================
-                # TODO: REPLACE THIS WITH TEAMMATE'S REAL LLM CALL FUNCTION
-                # ============================================================
-                # The real function should:
-                # 1. Take self._latest_frame as input (rtc.VideoFrame)
-                # 2. Call your LLM/vision model to analyze the frame
-                # 3. Return structured emotion/expression data
-                # 4. Handle rate limiting and errors gracefully
-                #
-                # Example signature:
-                # result = await analyze_frame_with_llm(self._latest_frame)
-                # ============================================================
-
-                result = await self._dummy_llm_call(self._latest_frame)
-
-                # ============================================================
-                # TODO: HANDLE THE RESULT
-                # ============================================================
-                # Options:
-                # 1. Send to iOS via data message:
-                #    await ctx.room.local_participant.publish_data(
-                #        json.dumps(result).encode(), topic="emotion_analysis"
-                #    )
-                #
-                # 2. Store for later use:
-                #    self._last_analysis_result = result
-                #
-                # 3. Log only (current behavior):
-                #    logger.info(f"Analysis result: {result}")
-                # ============================================================
-
-                logger.info(f"Periodic analysis result: {result}")
+                # Call real LLM analysis - this will analyze the frame and add result to queue
+                await self.process_image(self._latest_frame)
+                logger.info(f"Triggered frame analysis (queue size: {len(self._frame_descriptions_queue)})")
 
             except asyncio.CancelledError:
                 logger.info("Periodic frame analyzer stopped")
@@ -287,34 +234,6 @@ The [JSON] section is for programmatic access.
                 # Continue running even if one analysis fails
                 continue
 
-    async def _dummy_llm_call(self, frame: rtc.VideoFrame) -> dict:
-        """
-        DUMMY PLACEHOLDER - Replace with real LLM call from teammate.
-
-        This function simulates calling an LLM/vision model to analyze a video frame.
-
-        Args:
-            frame: The latest video frame from the glasses camera
-
-        Returns:
-            Dict with analysis results (structure TBD by teammate)
-
-        TODO: Replace this entire function with:
-        - Real API call to your vision/emotion detection model
-        - Proper error handling for rate limits (429 errors)
-        - Retry logic with exponential backoff
-        - Response validation and parsing
-        """
-        # Simulate processing time
-        await asyncio.sleep(0.01)
-
-        # Return dummy data
-        return {
-            "status": "dummy_analysis",
-            "timestamp": asyncio.get_event_loop().time(),
-            "frame_available": frame is not None,
-            "message": "Replace _dummy_llm_call() with real LLM integration"
-        }
 
     def _start_periodic_analysis(self) -> None:
         """Start the periodic frame analysis background task."""
@@ -341,7 +260,7 @@ The [JSON] section is for programmatic access.
         else:
             logger.warning("No video frame available")
             new_message.content.append(
-                "[SYSTEM: No video frame available. Return [DESCRIPTION] I cannot see your camera feed right now. [JSON] {\"apparent_emotion\": \"unknown\", \"energy_level\": \"unknown\", \"engagement\": \"unknown\", \"gaze_direction\": \"unknown\", \"facial_cues\": [], \"gestures\": [], \"confidence\": 0.0, \"summary\": \"No video feed available\"}]"
+                "[SYSTEM: No video frame available. Return [DESCRIPTION] I cannot see your camera feed right now. [JSON] {\"emotion\": \"unknown\", \"person_presence\": \"absent\", \"is_nodding\": false, \"on_phone\": false, \"confidence\": 0.0, \"timestamp\": \"[current]\"}]"
             )
 
     async def on_agent_response(
@@ -353,7 +272,7 @@ The [JSON] section is for programmatic access.
 
         response_text = " ".join(str(c) for c in response.content)
 
-        # Extract natural language description for TTS
+        # Extract natural language description for TTS (strip out JSON)
         description_match = re.search(
             r'\[DESCRIPTION\]\s*(.*?)(?=\[JSON\]|$)', response_text, re.IGNORECASE | re.DOTALL
         )
@@ -367,12 +286,6 @@ The [JSON] section is for programmatic access.
                 description = re.sub(r'\[DESCRIPTION\]\s*', '', description, flags=re.IGNORECASE).strip()
                 if description:
                     response.content = [llm.TextContent(text=description)]
-
-        # Extract and store JSON for programmatic access
-        analysis_dict = self._extract_analysis_dict(response_text)
-        if analysis_dict:
-            self._last_analysis_dict = analysis_dict
-
 
     def _extract_analysis_dict(self, text: str) -> dict | None:
         """Extract JSON from text response. Returns a single dict or None."""
@@ -426,30 +339,6 @@ The [JSON] section is for programmatic access.
 
         return None
 
-    @property
-    def last_analysis_dict_str(self) -> str | None:
-        """Get the last facial expression analysis as a formatted JSON string."""
-        if self._last_analysis_dict:
-            return json.dumps(self._last_analysis_dict, indent=2)
-        return None
-
-    def get_facial_analysis(self) -> dict | None:
-        """Get the latest facial expression analysis results for the main subject.
-        Returns:
-            {
-                "apparent_emotion": "...",
-                "energy_level": "...",
-                "engagement": "...",
-                "gaze_direction": "...",
-                "facial_cues": [...],
-                "gestures": [...],
-                "confidence": 0.0-1.0,
-                "summary": "..."
-            }
-            Returns None if no analysis available.
-        """
-        return self._last_analysis_dict
-
     def _create_video_stream(self, track: rtc.Track) -> None:
         """Create a video stream to buffer the latest frame."""
         if self._video_stream is not None:
@@ -493,25 +382,42 @@ The [JSON] section is for programmatic access.
     ) -> None:
         """Analyze a frame with LLM and add JSON description to queue in correct timestamp order."""
         try:
-            # Frame analysis instructions (for continuous pipeline - returns JSON only)
-            frame_analysis_prompt = f"""{self._ANALYSIS_BASE_INSTRUCTIONS}
+            # Frame analysis instructions - using prompt from top of file
+            frame_analysis_prompt = """You are analyzing a video frame to extract structured information about the person in front of the camera.
+This information will help a blind person understand social cues they cannot see during a conversation.
 
-IMPORTANT: You must respond with a JSON object only.
+CRITICAL: Focus ONLY on the main subject - the person closest to the camera, centered in the frame, or the person the camera is clearly focused on.
+Ignore other people in the background or periphery. Analyze only the primary subject.
 
-Return a JSON object with the following structure:
-{self._JSON_SCHEMA}
+You must respond with ONLY a valid JSON object, no other text. The JSON must follow this exact structure:
+
+{
+    "emotion": string,  // One of: "happy", "smiling", "engaged", "interested", "amused", "sad", "frustrated", "confused", "bored", "annoyed", "angry", "neutral", "calm", "focused", "surprised", "embarrassed", "uncertain", "confident", "unknown"
+    "person_presence": string,  // One of: "present", "entered", "left", "absent"
+    "is_nodding": boolean,  // true if person is nodding their head, false otherwise
+    "on_phone": boolean,  // true if person is looking at or using a phone/device, false otherwise
+    "confidence": number,  // 0.0 to 1.0, your confidence in this analysis
+    "timestamp": string  // ISO 8601 timestamp (you can use current time approximation)
+}
+
+Rules:
+- "person_presence": Use "present" if a person is clearly visible. Use "entered" only if this is the first frame where a person appears (you may not have context, so default to "present" if unsure). Use "left" only if a person was clearly visible and is now gone. Use "absent" if no person is visible.
+- "is_nodding": Look for up-and-down head movements. If you cannot determine from a single frame, use false.
+- "on_phone": Detect if the person is holding, looking at, or interacting with a phone or similar device.
+- "emotion": Choose the most prominent emotion visible. If multiple emotions are present, choose the dominant one.
+- "confidence": Be honest about your confidence. Lower confidence if the person is partially obscured, in poor lighting, or if cues are ambiguous.
 
 If no person is visible or the main subject is unclear, return:
-{{
-    "apparent_emotion": "unknown",
-    "energy_level": "unknown",
-    "engagement": "unknown",
-    "gaze_direction": "unknown",
-    "facial_cues": [],
-    "gestures": [],
+{
+    "emotion": "unknown",
+    "person_presence": "absent",
+    "is_nodding": false,
+    "on_phone": false,
     "confidence": 0.0,
-    "summary": "No clear person or face visible in the image"
-}}"""
+    "timestamp": "[current ISO timestamp]"
+}
+
+Respond with ONLY the JSON object, no markdown, no code blocks, no explanation."""
 
             chat_ctx = llm.ChatContext()
             messages = [
@@ -528,23 +434,32 @@ If no person is visible or the main subject is unclear, return:
                 ),
             ]
 
+            logger.info("Calling frame analysis LLM...")
             response = await self._frame_analysis_llm.chat(ctx=chat_ctx, chat_messages=messages)
             response_text = " ".join(str(c) for c in response.content)
+            logger.info(f"Frame analysis LLM response received (length: {len(response_text)} chars)")
 
             # Extract JSON from response
             analysis_dict = self._extract_analysis_dict(response_text)
             if not analysis_dict:
-                # Fallback: create minimal dict
+                logger.warning("Failed to extract JSON from LLM response, using fallback")
+                # Fallback: create minimal dict matching the schema
                 analysis_dict = {
-                    "apparent_emotion": "unknown",
-                    "energy_level": "unknown",
-                    "engagement": "unknown",
-                    "gaze_direction": "unknown",
-                    "facial_cues": [],
-                    "gestures": [],
+                    "emotion": "unknown",
+                    "person_presence": "absent",
+                    "is_nodding": False,
+                    "on_phone": False,
                     "confidence": 0.0,
-                    "summary": "Analysis incomplete",
+                    "timestamp": capture_time.isoformat(),
                 }
+            else:
+                logger.info(
+                    f"Frame analysis complete - Emotion: {analysis_dict.get('emotion')}, "
+                    f"Person: {analysis_dict.get('person_presence')}, "
+                    f"Nodding: {analysis_dict.get('is_nodding')}, "
+                    f"On phone: {analysis_dict.get('on_phone')}, "
+                    f"Confidence: {analysis_dict.get('confidence')}"
+                )
 
             # Add timestamp (used for ordering)
             analysis_dict["timestamp"] = capture_time.isoformat()
@@ -552,6 +467,7 @@ If no person is visible or the main subject is unclear, return:
 
             # Insert in correct timestamp order
             await self._insert_analysis_in_order(analysis_dict)
+            logger.info(f"Frame description added to queue (queue size now: {len(self._frame_descriptions_queue)})")
 
         except Exception as e:
             logger.error(f"Error analyzing frame: {e}")
@@ -604,16 +520,35 @@ If no person is visible or the main subject is unclear, return:
                 try:
                     await asyncio.sleep(self.FRAME_SAMPLING_INTERVAL)
 
-                    if not self._change_detection_llm or len(self._frame_descriptions_queue) < 2:
+                    if not self._change_detection_llm:
+                        logger.debug("Change detection LLM not initialized")
                         continue
 
-                    # Get full ordered sequence
-                    descriptions = list(self._frame_descriptions_queue)
+                    if len(self._frame_descriptions_queue) < 2:
+                        logger.debug(f"Not enough frames in queue for change detection (need 2, have {len(self._frame_descriptions_queue)})")
+                        continue
+
+                    # Get only the last 5 descriptions (most recent context)
+                    descriptions = list(self._frame_descriptions_queue)[-5:]
+                    logger.info(f"Running change detection on last {len(descriptions)} frames...")
                     result = await self._detect_changes(descriptions)
 
-                    if result and result != self._last_change_detection_result:
-                        self._last_change_detection_result = result
-                        await self._send_to_glasses(result)
+                    # result is now a tuple: (should_speak: bool, description: str)
+                    if result:
+                        should_speak, description = result
+                        logger.info(f"Change detection result - Should speak: {should_speak}, Description: {description[:100]}...")
+
+                        # Only send to glasses if LLM says we should speak
+                        if should_speak and description != self._last_change_detection_result:
+                            self._last_change_detection_result = description
+                            logger.info(f"✓ SPEAKING TO USER: {description}")
+                            await self._send_to_glasses(description)
+                        elif should_speak and description == self._last_change_detection_result:
+                            logger.info("Skipping - same description as last time (no change)")
+                        elif not should_speak:
+                            logger.info(f"Skipping - not significant enough to speak: {description[:100]}...")
+                    else:
+                        logger.warning("Change detection returned None (LLM error or no result)")
 
                 except asyncio.CancelledError:
                     self._change_detection_running = False
@@ -626,34 +561,59 @@ If no person is visible or the main subject is unclear, return:
         self._tasks.append(task)
         logger.info("Started periodic change detection")
 
-    async def _detect_changes(self, descriptions: list[dict]) -> str | None:
-        """Analyze full ordered sequence of frame descriptions for changes."""
+    async def _detect_changes(self, descriptions: list[dict]) -> tuple[bool, str] | None:
+        """Analyze full ordered sequence of frame descriptions for changes.
+
+        Returns:
+            tuple[bool, str] where:
+                - bool: True if this observation should be spoken to the user
+                - str: The human-readable description of what's happening
+            Returns None if analysis fails or no descriptions available
+        """
         if not self._change_detection_llm or not descriptions:
             return None
 
         try:
-            # Format descriptions with temporal order
+            # Format descriptions with temporal order using new schema
             descriptions_text = "\n\n".join(
                 f"Frame {i+1} (timestamp: {desc.get('timestamp', 'unknown')}):\n"
-                f"Emotion: {desc.get('apparent_emotion', 'unknown')}, "
-                f"Energy: {desc.get('energy_level', 'unknown')}, "
-                f"Engagement: {desc.get('engagement', 'unknown')}, "
-                f"Gaze: {desc.get('gaze_direction', 'unknown')}, "
-                f"Summary: {desc.get('summary', 'N/A')}"
+                f"Emotion: {desc.get('emotion', 'unknown')}, "
+                f"Person presence: {desc.get('person_presence', 'unknown')}, "
+                f"Nodding: {desc.get('is_nodding', False)}, "
+                f"On phone: {desc.get('on_phone', False)}, "
+                f"Confidence: {desc.get('confidence', 0.0)}"
                 for i, desc in enumerate(descriptions)
             )
 
-            contextual_prompt = """You are analyzing a temporal sequence of frame descriptions. Your task is to:
+            contextual_prompt = """You are analyzing a temporal sequence of frame descriptions to help a blind person understand social cues. Your task is to:
 1. Understand what is currently happening in the scene (based on the latest frames)
 2. Identify any significant changes or patterns across the full sequence
 3. Consider the progression and order of frames, not just the latest vs previous
-4. Focus on contextual clues like: nodding, attention to phone, person approaching/leaving, engagement changes
+4. Focus on key social signals: emotion changes, nodding (is_nodding), phone usage (on_phone), person entering/leaving (person_presence)
 
-Return a brief, human-readable string (1-2 sentences) describing:
-- What is currently happening in the scene
-- Any relevant changes that occurred compared to earlier in the sequence
+You must respond with EXACTLY this format:
 
-If no significant changes are detected, return a simple description of the current state only."""
+SHOULD_SPEAK: true
+DESCRIPTION: [1-2 sentence description]
+
+OR
+
+SHOULD_SPEAK: false
+DESCRIPTION: [1-2 sentence description]
+
+Set SHOULD_SPEAK to true ONLY if:
+- A significant change occurred (emotion shift, person entered/left, engagement changed)
+- There's important social cue information the blind user should know RIGHT NOW
+- Something noteworthy is happening that warrants interrupting the user
+
+Set SHOULD_SPEAK to false if:
+- Nothing significant has changed
+- The current state is similar to recent frames
+- The information is not urgent or important enough to speak
+
+The DESCRIPTION should describe what's currently happening and any relevant changes."""
+
+            logger.debug(f"Change detection input:\n{descriptions_text}")
 
             chat_ctx = llm.ChatContext()
             messages = [
@@ -669,10 +629,38 @@ If no significant changes are detected, return a simple description of the curre
                 ),
             ]
 
+            logger.info("Calling change detection LLM...")
             response = await self._change_detection_llm.chat(ctx=chat_ctx, chat_messages=messages)
             result_text = " ".join(str(c) for c in response.content).strip()
+            logger.info(f"Change detection LLM raw response: {result_text}")
 
-            return result_text if result_text else None
+            # Parse the response to extract SHOULD_SPEAK and DESCRIPTION
+            should_speak = False
+            description = ""
+
+            # Look for SHOULD_SPEAK: true/false
+            should_speak_match = re.search(r'SHOULD_SPEAK:\s*(true|false)', result_text, re.IGNORECASE)
+            if should_speak_match:
+                should_speak = should_speak_match.group(1).lower() == "true"
+                logger.debug(f"Parsed SHOULD_SPEAK: {should_speak}")
+            else:
+                logger.warning("Could not find SHOULD_SPEAK in response, defaulting to false")
+
+            # Look for DESCRIPTION: ...
+            description_match = re.search(r'DESCRIPTION:\s*(.+)', result_text, re.IGNORECASE | re.DOTALL)
+            if description_match:
+                description = description_match.group(1).strip()
+                logger.debug(f"Parsed DESCRIPTION: {description[:100]}...")
+            else:
+                # Fallback: use entire text if no DESCRIPTION marker found
+                logger.warning("Could not find DESCRIPTION marker, using entire response")
+                description = result_text
+
+            if not description:
+                logger.warning("No description found in change detection response")
+                return None
+
+            return (should_speak, description)
 
         except Exception as e:
             logger.error(f"Error in change detection: {e}")
@@ -685,10 +673,11 @@ If no significant changes are detected, return a simple description of the curre
             return
 
         try:
+            logger.info(f"🔊 Generating TTS for: '{text}'")
             await self._session.generate_reply(instructions=f"Say: {text}")
-            logger.info(f"Sent to glasses via TTS: {text[:50]}...")
+            logger.info(f"✓ TTS sent successfully")
         except Exception as e:
-            logger.error(f"Error sending to glasses: {e}")
+            logger.error(f"❌ Error sending to glasses: {e}")
 
     def set_session(self, session: AgentSession) -> None:
         """Set the session reference for TTS output."""
@@ -759,9 +748,7 @@ async def entrypoint(ctx: JobContext) -> None:
         use_tts_aligned_transcript=True,
     )
 
-    agent = EmotionAssistant()
-    await session.start(room=ctx.room, agent=agent)
-    agent.set_session(session)  # Provide session reference for TTS output
+    # Set up event listeners before starting session
     @session.on("user_input_transcribed")
     def _on_user_input(text: str) -> None:
         logger.info(f"User said: {text}")
@@ -791,10 +778,12 @@ async def entrypoint(ctx: JobContext) -> None:
             logger.info(f"Session TTS metrics: {metrics}")
 
     # Start the agent session
+    agent = EmotionAssistant()
     await session.start(room=ctx.room, agent=agent)
+    agent.set_session(session)  # Provide session reference for TTS output
 
     # Generate initial greeting
-    await session.generate_reply(instructions="Say 'emotion detection ready'.")
+    await session.generate_reply(instructions="Say 'non-verbal cues description started'.")
 
     logger.info("Emotion detection agent session started successfully")
 
