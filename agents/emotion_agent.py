@@ -77,7 +77,7 @@ class EmotionAssistant(Agent):
     """AI assistant that detects and describes emotions from video frames."""
 
     # Constants for frame processing pipeline
-    FRAME_SAMPLING_INTERVAL = 2.0  # seconds between frame samples
+    FRAME_SAMPLING_INTERVAL = 2  # seconds between frame samples
     FRAME_QUEUE_MAX_SIZE = 10  # maximum number of frame descriptions to store
 
     def __init__(self) -> None:
@@ -146,9 +146,7 @@ The [JSON] section is for programmatic access.
         ctx = get_job_context()
         room = ctx.room
 
-        logger.info("=" * 70)
-        logger.info(f"🚀 Emotion agent initializing for room: {room.name}")
-        logger.info("=" * 70)
+        logger.info(f"Emotion agent initializing for room: {room.name}")
 
         # Initialize LLMs for frame processing pipeline
         self._frame_analysis_llm = openai.LLM(
@@ -194,12 +192,9 @@ The [JSON] section is for programmatic access.
                 logger.info(f"New video track subscribed from {participant.identity}")
                 self._create_video_stream(track)
 
-        # Start periodic frame analysis (every 0.5 seconds)
+        # Start periodic frame analysis
         self._start_periodic_analysis()
-        logger.info(f"Started periodic analysis (interval: {self._analysis_interval}s)")
-        logger.info("=" * 70)
-        logger.info("✓ Emotion agent initialization complete - ready to analyze frames")
-        logger.info("=" * 70)
+        logger.info(f"Emotion agent ready (analyzing every {self._analysis_interval}s)")
 
     async def on_leave(self) -> None:
         """Called when agent leaves the room. Clean up periodic analysis."""
@@ -225,12 +220,8 @@ The [JSON] section is for programmatic access.
                     continue
 
                 analysis_count += 1
-                logger.info(f"==================== Periodic Analysis #{analysis_count} ====================")
-
                 # Call real LLM analysis - this will analyze the frame and add result to queue
                 await self.process_image(self._latest_frame)
-                logger.info(f"Triggered frame analysis (queue size: {len(self._frame_descriptions_queue)})")
-                logger.info("=" * 70)
 
             except asyncio.CancelledError:
                 logger.info("Periodic frame analyzer stopped")
@@ -438,7 +429,6 @@ Respond with ONLY the JSON object, no markdown, no code blocks, no explanation."
                 ],
             )
 
-            logger.info("Calling frame analysis LLM...")
             stream = self._frame_analysis_llm.chat(chat_ctx=chat_ctx)
 
             # Collect full response - to_str_iterable() converts stream to text chunks
@@ -446,13 +436,11 @@ Respond with ONLY the JSON object, no markdown, no code blocks, no explanation."
             async for text_chunk in stream.to_str_iterable():
                 response_text += text_chunk
 
-            logger.info(f"Frame analysis LLM response received (length: {len(response_text)} chars)")
-            logger.debug(f"Full response: {response_text[:200]}...")
+            logger.info(f"Frame analysis: {response_text}")
 
             # Extract JSON from response
             analysis_dict = self._extract_analysis_dict(response_text)
             if not analysis_dict:
-                logger.warning("Failed to extract JSON from LLM response, using fallback")
                 # Fallback: create minimal dict matching the schema
                 analysis_dict = {
                     "emotion": "unknown",
@@ -462,14 +450,6 @@ Respond with ONLY the JSON object, no markdown, no code blocks, no explanation."
                     "confidence": 0.0,
                     "timestamp": capture_time.isoformat(),
                 }
-            else:
-                logger.info(
-                    f"Frame analysis complete - Emotion: {analysis_dict.get('emotion')}, "
-                    f"Person: {analysis_dict.get('person_presence')}, "
-                    f"Nodding: {analysis_dict.get('is_nodding')}, "
-                    f"On phone: {analysis_dict.get('on_phone')}, "
-                    f"Confidence: {analysis_dict.get('confidence')}"
-                )
 
             # Add timestamp (used for ordering)
             analysis_dict["timestamp"] = capture_time.isoformat()
@@ -477,7 +457,6 @@ Respond with ONLY the JSON object, no markdown, no code blocks, no explanation."
 
             # Insert in correct timestamp order
             await self._insert_analysis_in_order(analysis_dict)
-            logger.info(f"Frame description added to queue (queue size now: {len(self._frame_descriptions_queue)})")
 
         except Exception as e:
             logger.error(f"Error analyzing frame: {e}")
@@ -510,9 +489,6 @@ Respond with ONLY the JSON object, no markdown, no code blocks, no explanation."
         for analysis in all_analyses[-self.FRAME_QUEUE_MAX_SIZE :]:
             # Keep timestamp_obj for future sorting (don't remove it)
             self._frame_descriptions_queue.append(analysis)
-            logger.debug(
-                f"Frame with timestamp {analysis['timestamp']} in queue. Queue size: {len(self._frame_descriptions_queue)}"
-            )
 
         # Clear pending - all items are now in queue (or dropped if over maxlen)
         self._pending_analyses.clear()
@@ -531,34 +507,24 @@ Respond with ONLY the JSON object, no markdown, no code blocks, no explanation."
                     await asyncio.sleep(self.FRAME_SAMPLING_INTERVAL)
 
                     if not self._change_detection_llm:
-                        logger.debug("Change detection LLM not initialized")
                         continue
 
                     if len(self._frame_descriptions_queue) < 2:
-                        logger.debug(f"Not enough frames in queue for change detection (need 2, have {len(self._frame_descriptions_queue)})")
                         continue
 
                     # Get only the last 5 descriptions (most recent context)
+                    # fi: update queue size here
                     descriptions = list(self._frame_descriptions_queue)[-5:]
-                    logger.info(f"---------- Change Detection (analyzing {len(descriptions)} frames) ----------")
                     result = await self._detect_changes(descriptions)
 
                     # result is now a tuple: (should_speak: bool, description: str)
                     if result:
                         should_speak, description = result
-                        logger.info(f"Change detection result - Should speak: {should_speak}, Description: {description[:100]}...")
 
                         # Only send to glasses if LLM says we should speak
                         if should_speak and description != self._last_change_detection_result:
                             self._last_change_detection_result = description
-                            logger.info(f"✓ SPEAKING TO USER: {description}")
                             await self._send_to_glasses(description)
-                        elif should_speak and description == self._last_change_detection_result:
-                            logger.info("Skipping - same description as last time (no change)")
-                        elif not should_speak:
-                            logger.info(f"Skipping - not significant enough to speak: {description[:100]}...")
-                    else:
-                        logger.warning("Change detection returned None (LLM error or no result)")
 
                 except asyncio.CancelledError:
                     self._change_detection_running = False
@@ -569,7 +535,6 @@ Respond with ONLY the JSON object, no markdown, no code blocks, no explanation."
         task = asyncio.create_task(periodic_change_detection())
         task.add_done_callback(lambda t: self._tasks.remove(t) if t in self._tasks else None)
         self._tasks.append(task)
-        logger.info("Started periodic change detection")
 
     async def _detect_changes(self, descriptions: list[dict]) -> tuple[bool, str] | None:
         """Analyze full ordered sequence of frame descriptions for changes.
@@ -688,8 +653,6 @@ COMPARISON LOGIC:
 
 Remember: When SHOULD_SPEAK is true, write the DESCRIPTION as if you are the voice speaking directly to the blind user through their glasses. Be natural, clear, helpful, and MOST IMPORTANTLY - KEEP IT SHORT AND CONCISE."""
 
-            logger.debug(f"Change detection input:\n{descriptions_text}")
-
             chat_ctx = llm.ChatContext()
             chat_ctx.add_message(
                 role="system",
@@ -702,7 +665,6 @@ Remember: When SHOULD_SPEAK is true, write the DESCRIPTION as if you are the voi
                 ],
             )
 
-            logger.info("Calling change detection LLM...")
             stream = self._change_detection_llm.chat(chat_ctx=chat_ctx)
 
             # Collect full response
@@ -711,7 +673,7 @@ Remember: When SHOULD_SPEAK is true, write the DESCRIPTION as if you are the voi
                 result_text += text_chunk
 
             result_text = result_text.strip()
-            logger.info(f"Change detection LLM raw response: {result_text}")
+            logger.info(f"Change detection: {result_text}")
 
             # Parse the response to extract SHOULD_SPEAK and DESCRIPTION
             should_speak = False
@@ -721,9 +683,6 @@ Remember: When SHOULD_SPEAK is true, write the DESCRIPTION as if you are the voi
             should_speak_match = re.search(r'SHOULD_SPEAK:\s*(true|false)', result_text, re.IGNORECASE)
             if should_speak_match:
                 should_speak = should_speak_match.group(1).lower() == "true"
-                logger.debug(f"Parsed SHOULD_SPEAK: {should_speak}")
-            else:
-                logger.warning("Could not find SHOULD_SPEAK in response, defaulting to false")
 
             # Look for DESCRIPTION: ...
             description_match = re.search(r'DESCRIPTION:\s*(.+)', result_text, re.IGNORECASE | re.DOTALL)
@@ -731,16 +690,13 @@ Remember: When SHOULD_SPEAK is true, write the DESCRIPTION as if you are the voi
                 description = description_match.group(1).strip()
                 # Remove any leading "description:" or "description -" that LLM might redundantly add
                 description = re.sub(r'^description[\s:;,\-]*', '', description, flags=re.IGNORECASE).strip()
-                logger.debug(f"Parsed DESCRIPTION (after cleanup): {description[:100]}...")
             else:
                 # Fallback: use entire text if no DESCRIPTION marker found
-                logger.warning("Could not find DESCRIPTION marker, using entire response")
                 description = result_text
                 # Clean up fallback too
                 description = re.sub(r'^description[\s:;,\-]*', '', description, flags=re.IGNORECASE).strip()
 
             if not description:
-                logger.warning("No description found in change detection response")
                 return None
 
             return (should_speak, description)
@@ -752,15 +708,13 @@ Remember: When SHOULD_SPEAK is true, write the DESCRIPTION as if you are the voi
     async def _send_to_glasses(self, text: str) -> None:
         """Send text to glasses via TTS."""
         if not self._session:
-            logger.warning("No session available for TTS output")
             return
 
         try:
-            logger.info(f"🔊 Generating TTS for: '{text}'")
+            logger.info(f"🔊 GLASSES: {text}")
             await self._session.generate_reply(instructions=f"Say: {text}")
-            logger.info(f"✓ TTS sent successfully")
         except Exception as e:
-            logger.error(f"❌ Error sending to glasses: {e}")
+            logger.error(f"Error sending to glasses: {e}")
 
     def set_session(self, session: AgentSession) -> None:
         """Set the session reference for TTS output."""
