@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
-py-modules = ["config", "example_agent"]
+py-modules = ["config", "example_agent", "emotion_agent"]
 
 [tool.ruff]
 line-length = 100

@@ -2,11 +2,13 @@
 
 import asyncio
 import json
+import logging
 import re
 
 from livekit import rtc
 from livekit.agents import (
     Agent,
+    AgentServer,
     AgentSession,
     JobContext,
     JobRequest,
@@ -20,6 +22,9 @@ from livekit.plugins import deepgram, elevenlabs, openai, silero
 from loguru import logger
 
 from config import settings
+
+# Enable debug logging
+logging.basicConfig(level=logging.INFO)
 
 
 class EmotionAssistant(Agent):
@@ -263,6 +268,10 @@ class EmotionAssistant(Agent):
         self._tasks.append(task)
 
 
+# Create agent server
+server = AgentServer()
+
+
 async def should_accept_job(job_request: JobRequest) -> None:
     """Filter function to accept only jobs matching this agent's name.
 
@@ -323,7 +332,8 @@ async def entrypoint(ctx: JobContext) -> None:
     )
 
     agent = EmotionAssistant()
-    await session.start(room=ctx.room, agent=agent)
+
+    # Add event listeners BEFORE starting the session
     @session.on("user_input_transcribed")
     def _on_user_input(text: str) -> None:
         logger.info(f"User said: {text}")
@@ -340,11 +350,22 @@ async def entrypoint(ctx: JobContext) -> None:
             content = item.content[0] if item.content else ""
             logger.info(f"Conversation item: role={item.role}, content: '{content}'")
 
+    # Add session TTS event listeners
     if session.tts:
+        logger.info("Setting up session TTS event listeners")
+
         @session.tts.on("error")
         def _on_session_tts_error(error: Exception) -> None:
-            logger.warning(f"TTS error: {error}")
+            logger.warning(f"Session TTS error: {error}")
 
+        @session.tts.on("metrics_collected")
+        def _on_session_tts_metrics(metrics) -> None:
+            logger.info(f"Session TTS metrics: {metrics}")
+
+    # Start the agent session
+    await session.start(room=ctx.room, agent=agent)
+
+    # Generate initial greeting
     await session.generate_reply(instructions="Say 'emotion detection ready'.")
 
     logger.info("Emotion detection agent session started successfully")
