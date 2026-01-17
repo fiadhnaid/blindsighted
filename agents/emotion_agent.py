@@ -77,7 +77,7 @@ class EmotionAssistant(Agent):
     """AI assistant that detects and describes emotions from video frames."""
 
     # Constants for frame processing pipeline
-    FRAME_SAMPLING_INTERVAL = 1.0  # seconds between frame samples
+    FRAME_SAMPLING_INTERVAL = 2.0  # seconds between frame samples
     FRAME_QUEUE_MAX_SIZE = 10  # maximum number of frame descriptions to store
 
     def __init__(self) -> None:
@@ -138,7 +138,7 @@ The [JSON] section is for programmatic access.
         self._pending_analyses: list[dict] = []  # list of completed analyses waiting to be inserted
 
         self._periodic_analysis_task: asyncio.Task | None = None
-        self._analysis_interval = 1  # seconds
+        self._analysis_interval = 2  # seconds
         logger.info("EmotionAssistant initialized (single person focus)")
 
     async def on_enter(self) -> None:
@@ -426,24 +426,28 @@ If no person is visible or the main subject is unclear, return:
 Respond with ONLY the JSON object, no markdown, no code blocks, no explanation."""
 
             chat_ctx = llm.ChatContext()
-            messages = [
-                llm.ChatMessage(
-                    role="system",
-                    content=[frame_analysis_prompt],
-                ),
-                llm.ChatMessage(
-                    role="user",
-                    content=[
-                        "Analyze this image and return the JSON object describing the person's emotions and facial expression.",
-                        llm.ImageContent(image=frame),
-                    ],
-                ),
-            ]
+            chat_ctx.add_message(
+                role="system",
+                content=[frame_analysis_prompt],
+            )
+            chat_ctx.add_message(
+                role="user",
+                content=[
+                    "Analyze this image and return the JSON object describing the person's emotions and facial expression.",
+                    llm.ImageContent(image=frame),
+                ],
+            )
 
             logger.info("Calling frame analysis LLM...")
-            response = await self._frame_analysis_llm.chat(ctx=chat_ctx, chat_messages=messages)
-            response_text = " ".join(str(c) for c in response.content)
+            stream = self._frame_analysis_llm.chat(chat_ctx=chat_ctx)
+
+            # Collect full response - to_str_iterable() converts stream to text chunks
+            response_text = ""
+            async for text_chunk in stream.to_str_iterable():
+                response_text += text_chunk
+
             logger.info(f"Frame analysis LLM response received (length: {len(response_text)} chars)")
+            logger.debug(f"Full response: {response_text[:200]}...")
 
             # Extract JSON from response
             analysis_dict = self._extract_analysis_dict(response_text)
@@ -622,22 +626,26 @@ The DESCRIPTION should describe what's currently happening and any relevant chan
             logger.debug(f"Change detection input:\n{descriptions_text}")
 
             chat_ctx = llm.ChatContext()
-            messages = [
-                llm.ChatMessage(
-                    role="system",
-                    content=[contextual_prompt],
-                ),
-                llm.ChatMessage(
-                    role="user",
-                    content=[
-                        f"Analyze this sequence of frame descriptions in temporal order:\n\n{descriptions_text}"
-                    ],
-                ),
-            ]
+            chat_ctx.add_message(
+                role="system",
+                content=[contextual_prompt],
+            )
+            chat_ctx.add_message(
+                role="user",
+                content=[
+                    f"Analyze this sequence of frame descriptions in temporal order:\n\n{descriptions_text}"
+                ],
+            )
 
             logger.info("Calling change detection LLM...")
-            response = await self._change_detection_llm.chat(ctx=chat_ctx, chat_messages=messages)
-            result_text = " ".join(str(c) for c in response.content).strip()
+            stream = self._change_detection_llm.chat(chat_ctx=chat_ctx)
+
+            # Collect full response
+            result_text = ""
+            async for text_chunk in stream.to_str_iterable():
+                result_text += text_chunk
+
+            result_text = result_text.strip()
             logger.info(f"Change detection LLM raw response: {result_text}")
 
             # Parse the response to extract SHOULD_SPEAK and DESCRIPTION
