@@ -30,66 +30,71 @@ class EmotionAssistant(Agent):
     FRAME_SAMPLING_INTERVAL = 1.0  # seconds between frame samples
     FRAME_QUEUE_MAX_SIZE = 10  # maximum number of frame descriptions to store
 
+    # Shared analysis instructions
+    _ANALYSIS_BASE_INSTRUCTIONS = """You are a facial expression and behavior analysis AI assistant. Your primary task is to analyze images
+(photos or video frames) and provide comprehensive insights about THE PERSON DIRECTLY IN FRONT OF THE CAMERA.
+
+CRITICAL: Focus ONLY on the main subject - the person closest to the camera, centered in the frame, or the person the camera is clearly focused on.
+Ignore other people in the background or periphery. Analyze only the primary subject.
+
+Analyze the MAIN SUBJECT carefully:
+- Facial expressions (smile, frown, raised eyebrows, etc.)
+- Eye contact and gaze direction (especially if looking at camera)
+- Head position and orientation
+- Body language visible in frame
+- Overall energy and engagement level
+- Subtle micro-expressions if visible"""
+
+    _JSON_SCHEMA = """{
+    "apparent_emotion": string, // e.g. "relaxed", "tense", "bored", "amused", "frustrated", "uncertain", "happy", "sad", "angry", "surprised", "neutral"
+    "energy_level": string, // one of ["low","medium","high"]
+    "engagement": string, // one of ["disengaged","neutral","attentive","very_attentive"]
+    "gaze_direction": string, // one of ["camera","left","right","up","down","unfocused","unknown"]
+    "facial_cues": [string], // short phrases, e.g. ["slight smile","raised eyebrows","tight jaw","furrowed brow","wide eyes"]
+    "gestures": [
+        {
+            "type": string, // e.g. "nod","head_shake","lean_in","eyebrow_raise","smile_change","frown","eye_roll"
+            "description": string, // short natural-language description
+            "confidence": number // 0.0 to 1.0
+        }
+    ],
+    "confidence": number, // 0.0 to 1.0 overall confidence in your interpretation
+    "summary": string // max 2 sentences, informal human-friendly description
+}"""
+
     def __init__(self) -> None:
-        super().__init__(
-            instructions="""You are a facial expression and behavior analysis AI assistant. Your primary task is to analyze images
-            (photos or video frames) and provide comprehensive insights about THE PERSON DIRECTLY IN FRONT OF THE CAMERA.
+        # Main agent instructions (for conversation - returns description + JSON)
+        conversation_instructions = f"""{self._ANALYSIS_BASE_INSTRUCTIONS}
 
-            CRITICAL: Focus ONLY on the main subject - the person closest to the camera, centered in the frame, or the person the camera is clearly focused on.
-            Ignore other people in the background or periphery. Analyze only the primary subject.
+IMPORTANT: You must respond with BOTH a natural language description AND a JSON object.
 
-            IMPORTANT: You must respond with BOTH a natural language description AND a JSON object.
+Format your response as:
+[DESCRIPTION]
+Provide a brief, natural 2-3 sentence description of what you observe about the person's facial expression, energy, engagement, and overall demeanor. Be conversational and human-friendly. This will be read aloud to the user.
 
-            Format your response as:
-            [DESCRIPTION]
-            Provide a brief, natural 2-3 sentence description of what you observe about the person's facial expression, energy, engagement, and overall demeanor. Be conversational and human-friendly. This will be read aloud to the user.
+[JSON]
+{self._JSON_SCHEMA}
 
-            [JSON]
-            {
-                "apparent_emotion": string, // e.g. "relaxed", "tense", "bored", "amused", "frustrated", "uncertain", "happy", "sad", "angry", "surprised", "neutral"
-                "energy_level": string, // one of ["low","medium","high"]
-                "engagement": string, // one of ["disengaged","neutral","attentive","very_attentive"]
-                "gaze_direction": string, // one of ["camera","left","right","up","down","unfocused","unknown"]
-                "facial_cues": [string], // short phrases, e.g. ["slight smile","raised eyebrows","tight jaw","furrowed brow","wide eyes"]
-                "gestures": [
-                    {
-                        "type": string, // e.g. "nod","head_shake","lean_in","eyebrow_raise","smile_change","frown","eye_roll"
-                        "description": string, // short natural-language description
-                        "confidence": number // 0.0 to 1.0
-                    }
-                ],
-                "confidence": number, // 0.0 to 1.0 overall confidence in your interpretation
-                "summary": string // max 2 sentences, informal human-friendly description
-            }
+If no person is visible or the main subject is unclear, return:
+[DESCRIPTION]
+I cannot see a clear person or face in the image right now.
 
-            If no person is visible or the main subject is unclear, return:
-            [DESCRIPTION]
-            I cannot see a clear person or face in the image right now.
+[JSON]
+{{
+    "apparent_emotion": "unknown",
+    "energy_level": "unknown",
+    "engagement": "unknown",
+    "gaze_direction": "unknown",
+    "facial_cues": [],
+    "gestures": [],
+    "confidence": 0.0,
+    "summary": "No clear person or face visible in the image"
+}}
 
-            [JSON]
-            {
-                "apparent_emotion": "unknown",
-                "energy_level": "unknown",
-                "engagement": "unknown",
-                "gaze_direction": "unknown",
-                "facial_cues": [],
-                "gestures": [],
-                "confidence": 0.0,
-                "summary": "No clear person or face visible in the image"
-            }
-
-            Analyze the MAIN SUBJECT carefully:
-            - Facial expressions (smile, frown, raised eyebrows, etc.)
-            - Eye contact and gaze direction (especially if looking at camera)
-            - Head position and orientation
-            - Body language visible in frame
-            - Overall energy and engagement level
-            - Subtle micro-expressions if visible
-
-            The [DESCRIPTION] section will be read aloud, so make it natural and conversational.
-            The [JSON] section is for programmatic access.
-            """
-        )
+The [DESCRIPTION] section will be read aloud, so make it natural and conversational.
+The [JSON] section is for programmatic access.
+"""
+        super().__init__(instructions=conversation_instructions)
         self._latest_frame: rtc.VideoFrame | None = None
         self._video_stream: rtc.VideoStream | None = None
         self._tasks: list[asyncio.Task] = []
@@ -320,12 +325,36 @@ class EmotionAssistant(Agent):
     ) -> None:
         """Analyze a frame with LLM and add JSON description to queue in correct timestamp order."""
         try:
+            # Frame analysis instructions (for continuous pipeline - returns JSON only)
+            frame_analysis_prompt = f"""{self._ANALYSIS_BASE_INSTRUCTIONS}
+
+IMPORTANT: You must respond with a JSON object only.
+
+Return a JSON object with the following structure:
+{self._JSON_SCHEMA}
+
+If no person is visible or the main subject is unclear, return:
+{{
+    "apparent_emotion": "unknown",
+    "energy_level": "unknown",
+    "engagement": "unknown",
+    "gaze_direction": "unknown",
+    "facial_cues": [],
+    "gestures": [],
+    "confidence": 0.0,
+    "summary": "No clear person or face visible in the image"
+}}"""
+
             chat_ctx = llm.ChatContext()
             messages = [
                 llm.ChatMessage(
+                    role="system",
+                    content=[frame_analysis_prompt],
+                ),
+                llm.ChatMessage(
                     role="user",
                     content=[
-                        "Analyze this image and describe the person's emotions and facial expression. Return a JSON object with: apparent_emotion, energy_level, engagement, gaze_direction, facial_cues, gestures, confidence, summary",
+                        "Analyze this image and return the JSON object describing the person's emotions and facial expression.",
                         llm.ImageContent(image=frame),
                     ],
                 ),
@@ -360,40 +389,39 @@ class EmotionAssistant(Agent):
             logger.error(f"Error analyzing frame: {e}")
 
     async def _insert_analysis_in_order(self, analysis_dict: dict) -> None:
-        """Insert analysis in correct timestamp order."""
+        """Insert analysis in correct timestamp order by merging and sorting queue + pending."""
         # Add to pending list
         self._pending_analyses.append(analysis_dict)
 
-        # Sort pending analyses by timestamp
-        self._pending_analyses.sort(key=lambda x: x.get("timestamp_obj", datetime.min))
+        # Merge queue and pending, then sort by timestamp
+        all_analyses = list(self._frame_descriptions_queue) + self._pending_analyses
 
-        # Insert all analyses that are in order (timestamp <= last in queue or queue is empty)
-        queue_last_timestamp = None
-        if self._frame_descriptions_queue:
-            last_item = self._frame_descriptions_queue[-1]
-            queue_last_timestamp = last_item.get("timestamp_obj")
+        # Sort by timestamp_obj (items in queue may not have it, so parse from ISO string)
+        def get_timestamp(analysis: dict) -> datetime:
+            timestamp_obj = analysis.get("timestamp_obj")
+            if timestamp_obj:
+                return timestamp_obj
+            # Parse from ISO string if timestamp_obj was removed
+            if "timestamp" in analysis:
+                try:
+                    return datetime.fromisoformat(analysis["timestamp"])
+                except (ValueError, TypeError):
+                    pass
+            return datetime.min
 
-        # Insert all pending analyses that come after the last queue item
-        to_insert = []
-        remaining = []
-        for analysis in self._pending_analyses:
-            analysis_timestamp = analysis.get("timestamp_obj")
-            if queue_last_timestamp is None or analysis_timestamp >= queue_last_timestamp:
-                to_insert.append(analysis)
-            else:
-                remaining.append(analysis)
+        all_analyses.sort(key=get_timestamp)
 
-        # Insert in order
-        for analysis in to_insert:
+        # Rebuild queue with sorted items (respecting maxlen)
+        self._frame_descriptions_queue.clear()
+        for analysis in all_analyses[-self.FRAME_QUEUE_MAX_SIZE :]:
+            # Keep timestamp_obj for future sorting (don't remove it)
             self._frame_descriptions_queue.append(analysis)
-            # Remove timestamp_obj (keep only ISO string for JSON serialization)
-            analysis.pop("timestamp_obj", None)
             logger.debug(
-                f"Frame with timestamp {analysis['timestamp']} inserted. Queue size: {len(self._frame_descriptions_queue)}"
+                f"Frame with timestamp {analysis['timestamp']} in queue. Queue size: {len(self._frame_descriptions_queue)}"
             )
 
-        # Keep remaining analyses that are out of order (waiting for earlier frames)
-        self._pending_analyses = remaining
+        # Clear pending - all items are now in queue (or dropped if over maxlen)
+        self._pending_analyses.clear()
 
     def _start_periodic_change_detection(self) -> None:
         """Start periodic task to detect changes in frame sequence."""
