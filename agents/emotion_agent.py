@@ -146,7 +146,9 @@ The [JSON] section is for programmatic access.
         ctx = get_job_context()
         room = ctx.room
 
-        logger.info(f"Emotion agent entered room: {room.name}")
+        logger.info("=" * 70)
+        logger.info(f"🚀 Emotion agent initializing for room: {room.name}")
+        logger.info("=" * 70)
 
         # Initialize LLMs for frame processing pipeline
         self._frame_analysis_llm = openai.LLM(
@@ -220,11 +222,12 @@ The [JSON] section is for programmatic access.
                     continue
 
                 analysis_count += 1
-                logger.info(f"Running periodic analysis #{analysis_count}")
+                logger.info(f"==================== Periodic Analysis #{analysis_count} ====================")
 
                 # Call real LLM analysis - this will analyze the frame and add result to queue
                 await self.process_image(self._latest_frame)
                 logger.info(f"Triggered frame analysis (queue size: {len(self._frame_descriptions_queue)})")
+                logger.info("=" * 70)
 
             except asyncio.CancelledError:
                 logger.info("Periodic frame analyzer stopped")
@@ -530,7 +533,7 @@ Respond with ONLY the JSON object, no markdown, no code blocks, no explanation."
 
                     # Get only the last 5 descriptions (most recent context)
                     descriptions = list(self._frame_descriptions_queue)[-5:]
-                    logger.info(f"Running change detection on last {len(descriptions)} frames...")
+                    logger.info(f"---------- Change Detection (analyzing {len(descriptions)} frames) ----------")
                     result = await self._detect_changes(descriptions)
 
                     # result is now a tuple: (should_speak: bool, description: str)
