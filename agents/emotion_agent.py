@@ -77,7 +77,7 @@ class EmotionAssistant(Agent):
     """AI assistant that detects and describes emotions from video frames."""
 
     # Constants for frame processing pipeline
-    FRAME_SAMPLING_INTERVAL = 2  # seconds between frame samples
+    FRAME_SAMPLING_INTERVAL = 1  # seconds between frame samples
     FRAME_QUEUE_MAX_SIZE = 10  # maximum number of frame descriptions to store
 
     def __init__(self) -> None:
