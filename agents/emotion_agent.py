@@ -1,7 +1,52 @@
 """LiveKit Agent for emotion detection from video frames using streaming STT-LLM-TTS pipeline."""
 
+"""
+LiveKit Agent for emotion detection from video frames using streaming STT-LLM-TTS pipeline.
+
+PROMPT FOR PER-SECOND FRAME ANALYSIS:
+================================================================
+
+You are analyzing a video frame to extract structured information about the person in front of the camera. 
+This information will help a blind person understand social cues they cannot see during a conversation.
+
+CRITICAL: Focus ONLY on the main subject - the person closest to the camera, centered in the frame, or the person the camera is clearly focused on.
+Ignore other people in the background or periphery. Analyze only the primary subject.
+
+You must respond with ONLY a valid JSON object, no other text. The JSON must follow this exact structure:
+
+{
+    "emotion": string,  // One of: "happy", "smiling", "engaged", "interested", "amused", "sad", "frustrated", "confused", "bored", "annoyed", "angry", "neutral", "calm", "focused", "surprised", "embarrassed", "uncertain", "confident", "unknown"
+    "person_presence": string,  // One of: "present", "entered", "left", "absent"
+    "is_nodding": boolean,  // true if person is nodding their head, false otherwise
+    "on_phone": boolean,  // true if person is looking at or using a phone/device, false otherwise
+    "confidence": number,  // 0.0 to 1.0, your confidence in this analysis
+    "timestamp": string  // ISO 8601 timestamp (you can use current time approximation)
+}
+
+Rules:
+- "person_presence": Use "present" if a person is clearly visible. Use "entered" only if this is the first frame where a person appears (you may not have context, so default to "present" if unsure). Use "left" only if a person was clearly visible and is now gone. Use "absent" if no person is visible.
+- "is_nodding": Look for up-and-down head movements. If you cannot determine from a single frame, use false.
+- "on_phone": Detect if the person is holding, looking at, or interacting with a phone or similar device.
+- "emotion": Choose the most prominent emotion visible. If multiple emotions are present, choose the dominant one.
+- "confidence": Be honest about your confidence. Lower confidence if the person is partially obscured, in poor lighting, or if cues are ambiguous.
+
+If no person is visible or the main subject is unclear, return:
+{
+    "emotion": "unknown",
+    "person_presence": "absent",
+    "is_nodding": false,
+    "on_phone": false,
+    "confidence": 0.0,
+    "timestamp": "[current ISO timestamp]"
+}
+
+Respond with ONLY the JSON object, no markdown, no code blocks, no explanation.
+"""
+
+
 import asyncio
 import json
+import logging
 import re
 from collections import deque
 from datetime import datetime
@@ -9,6 +54,7 @@ from datetime import datetime
 from livekit import rtc
 from livekit.agents import (
     Agent,
+    AgentServer,
     AgentSession,
     JobContext,
     JobRequest,
@@ -22,6 +68,10 @@ from livekit.plugins import deepgram, elevenlabs, openai, silero
 from loguru import logger
 
 from config import settings
+
+# Enable debug logging
+logging.basicConfig(level=logging.INFO)
+
 
 class EmotionAssistant(Agent):
     """AI assistant that detects and describes emotions from video frames."""
@@ -111,6 +161,8 @@ The [JSON] section is for programmatic access.
         # Timestamp-based ordering for frame processing
         self._pending_analyses: list[dict] = []  # list of completed analyses waiting to be inserted
 
+        self._periodic_analysis_task: asyncio.Task | None = None
+        self._analysis_interval = 1  # seconds
         logger.info("EmotionAssistant initialized (single person focus)")
 
     async def on_enter(self) -> None:
@@ -163,6 +215,122 @@ The [JSON] section is for programmatic access.
             if track.kind == rtc.TrackKind.KIND_VIDEO:
                 logger.info(f"New video track subscribed from {participant.identity}")
                 self._create_video_stream(track)
+
+        # Start periodic frame analysis (every 0.5 seconds)
+        self._start_periodic_analysis()
+        logger.info(f"Started periodic analysis (interval: {self._analysis_interval}s)")
+
+    async def on_leave(self) -> None:
+        """Called when agent leaves the room. Clean up periodic analysis."""
+        logger.info("Agent leaving room, stopping periodic analysis")
+        self._stop_periodic_analysis()
+
+    async def _periodic_frame_analyzer(self) -> None:
+        """
+        Continuously analyzes the latest video frame every 1 seconds.
+
+        This runs independently of voice interactions - the frame is analyzed
+        on a fixed schedule rather than when the user speaks.
+        """
+        logger.info("Periodic frame analyzer started")
+        analysis_count = 0
+
+        while True:
+            try:
+                await asyncio.sleep(self._analysis_interval)
+
+                if self._latest_frame is None:
+                    logger.debug("No frame available for periodic analysis")
+                    continue
+
+                analysis_count += 1
+                logger.info(f"Running periodic analysis #{analysis_count}")
+
+                # ============================================================
+                # TODO: REPLACE THIS WITH TEAMMATE'S REAL LLM CALL FUNCTION
+                # ============================================================
+                # The real function should:
+                # 1. Take self._latest_frame as input (rtc.VideoFrame)
+                # 2. Call your LLM/vision model to analyze the frame
+                # 3. Return structured emotion/expression data
+                # 4. Handle rate limiting and errors gracefully
+                #
+                # Example signature:
+                # result = await analyze_frame_with_llm(self._latest_frame)
+                # ============================================================
+
+                result = await self._dummy_llm_call(self._latest_frame)
+
+                # ============================================================
+                # TODO: HANDLE THE RESULT
+                # ============================================================
+                # Options:
+                # 1. Send to iOS via data message:
+                #    await ctx.room.local_participant.publish_data(
+                #        json.dumps(result).encode(), topic="emotion_analysis"
+                #    )
+                #
+                # 2. Store for later use:
+                #    self._last_analysis_result = result
+                #
+                # 3. Log only (current behavior):
+                #    logger.info(f"Analysis result: {result}")
+                # ============================================================
+
+                logger.info(f"Periodic analysis result: {result}")
+
+            except asyncio.CancelledError:
+                logger.info("Periodic frame analyzer stopped")
+                break
+            except Exception as e:
+                logger.error(f"Error in periodic frame analysis: {e}")
+                # Continue running even if one analysis fails
+                continue
+
+    async def _dummy_llm_call(self, frame: rtc.VideoFrame) -> dict:
+        """
+        DUMMY PLACEHOLDER - Replace with real LLM call from teammate.
+
+        This function simulates calling an LLM/vision model to analyze a video frame.
+
+        Args:
+            frame: The latest video frame from the glasses camera
+
+        Returns:
+            Dict with analysis results (structure TBD by teammate)
+
+        TODO: Replace this entire function with:
+        - Real API call to your vision/emotion detection model
+        - Proper error handling for rate limits (429 errors)
+        - Retry logic with exponential backoff
+        - Response validation and parsing
+        """
+        # Simulate processing time
+        await asyncio.sleep(0.01)
+
+        # Return dummy data
+        return {
+            "status": "dummy_analysis",
+            "timestamp": asyncio.get_event_loop().time(),
+            "frame_available": frame is not None,
+            "message": "Replace _dummy_llm_call() with real LLM integration"
+        }
+
+    def _start_periodic_analysis(self) -> None:
+        """Start the periodic frame analysis background task."""
+        if self._periodic_analysis_task is not None:
+            logger.warning("Periodic analysis already running")
+            return
+
+        self._periodic_analysis_task = asyncio.create_task(self._periodic_frame_analyzer())
+        self._tasks.append(self._periodic_analysis_task)
+
+    def _stop_periodic_analysis(self) -> None:
+        """Stop the periodic frame analysis background task."""
+        if self._periodic_analysis_task is not None:
+            self._periodic_analysis_task.cancel()
+            self._periodic_analysis_task = None
+            logger.info("Stopped periodic frame analysis")
 
     async def on_user_turn_completed(
         self, chat_ctx: llm.ChatContext, new_message: llm.ChatMessage
@@ -528,6 +696,10 @@ If no significant changes are detected, return a simple description of the curre
         logger.info("Session reference set for TTS output")
 
 
+# Create agent server
+server = AgentServer()
+
+
 async def should_accept_job(job_request: JobRequest) -> None:
     """Filter function to accept only jobs matching this agent's name.
 
@@ -606,11 +778,22 @@ async def entrypoint(ctx: JobContext) -> None:
             content = item.content[0] if item.content else ""
             logger.info(f"Conversation item: role={item.role}, content: '{content}'")
 
+    # Add session TTS event listeners
     if session.tts:
+        logger.info("Setting up session TTS event listeners")
+
         @session.tts.on("error")
         def _on_session_tts_error(error: Exception) -> None:
-            logger.warning(f"TTS error: {error}")
+            logger.warning(f"Session TTS error: {error}")
 
+        @session.tts.on("metrics_collected")
+        def _on_session_tts_metrics(metrics) -> None:
+            logger.info(f"Session TTS metrics: {metrics}")
+
+    # Start the agent session
+    await session.start(room=ctx.room, agent=agent)
+
+    # Generate initial greeting
     await session.generate_reply(instructions="Say 'emotion detection ready'.")
 
     logger.info("Emotion detection agent session started successfully")
@@ -626,4 +809,5 @@ if __name__ == "__main__":
             api_secret=settings.livekit_api_secret,
         )
     )
+
 
