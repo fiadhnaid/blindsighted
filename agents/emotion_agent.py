@@ -3,6 +3,8 @@
 import asyncio
 import json
 import re
+from collections import deque
+from datetime import datetime
 
 from livekit import rtc
 from livekit.agents import (
@@ -21,9 +23,12 @@ from loguru import logger
 
 from config import settings
 
-
 class EmotionAssistant(Agent):
     """AI assistant that detects and describes emotions from video frames."""
+
+    # Constants for frame processing pipeline
+    FRAME_SAMPLING_INTERVAL = 1.0  # seconds between frame samples
+    FRAME_QUEUE_MAX_SIZE = 10  # maximum number of frame descriptions to store
 
     def __init__(self) -> None:
         super().__init__(
@@ -89,6 +94,18 @@ class EmotionAssistant(Agent):
         self._video_stream: rtc.VideoStream | None = None
         self._tasks: list[asyncio.Task] = []
         self._last_analysis_dict: dict | None = None
+
+        # Frame processing pipeline
+        self._frame_descriptions_queue: deque[dict] = deque(maxlen=self.FRAME_QUEUE_MAX_SIZE)
+        self._frame_analysis_llm: llm.LLM | None = None
+        self._change_detection_llm: llm.LLM | None = None
+        self._change_detection_running = False
+        self._session: AgentSession | None = None
+        self._last_change_detection_result: str | None = None
+
+        # Timestamp-based ordering for frame processing
+        self._pending_analyses: list[dict] = []  # list of completed analyses waiting to be inserted
+
         logger.info("EmotionAssistant initialized (single person focus)")
 
     async def on_enter(self) -> None:
@@ -97,6 +114,24 @@ class EmotionAssistant(Agent):
         room = ctx.room
 
         logger.info(f"Emotion agent entered room: {room.name}")
+
+        # Initialize LLMs for frame processing pipeline
+        self._frame_analysis_llm = openai.LLM(
+            model="google/gemini-2.5-flash",
+            base_url=settings.openrouter_base_url,
+            api_key=settings.openrouter_api_key,
+            max_completion_tokens=500,
+        )
+
+        self._change_detection_llm = openai.LLM(
+            model="google/gemini-2.5-flash",
+            base_url=settings.openrouter_base_url,
+            api_key=settings.openrouter_api_key,
+            max_completion_tokens=300,
+        )
+
+        # Start change detection task
+        self._start_periodic_change_detection()
 
         # Find the first video track from remote participant (if any)
         if room.remote_participants:
@@ -262,6 +297,208 @@ class EmotionAssistant(Agent):
         task.add_done_callback(lambda t: self._tasks.remove(t) if t in self._tasks else None)
         self._tasks.append(task)
 
+    async def process_image(self, image: rtc.VideoFrame) -> None:
+        """Process an image asynchronously: analyze with LLM and add to queue in order.
+
+        This function can be called with any image. It will:
+        1. Capture timestamp to preserve order
+        2. Process the image with LLM to get JSON description (async)
+        3. Add the description to the queue in correct timestamp order when complete
+        """
+        if not self._frame_analysis_llm:
+            logger.warning("Frame analysis LLM not initialized")
+            return
+
+        # Capture timestamp when called (preserves order)
+        capture_time = datetime.now()
+
+        # Process frame asynchronously (non-blocking)
+        asyncio.create_task(self._analyze_frame_and_queue(image, capture_time))
+
+    async def _analyze_frame_and_queue(
+        self, frame: rtc.VideoFrame, capture_time: datetime
+    ) -> None:
+        """Analyze a frame with LLM and add JSON description to queue in correct timestamp order."""
+        try:
+            chat_ctx = llm.ChatContext()
+            messages = [
+                llm.ChatMessage(
+                    role="user",
+                    content=[
+                        "Analyze this image and describe the person's emotions and facial expression. Return a JSON object with: apparent_emotion, energy_level, engagement, gaze_direction, facial_cues, gestures, confidence, summary",
+                        llm.ImageContent(image=frame),
+                    ],
+                ),
+            ]
+
+            response = await self._frame_analysis_llm.chat(ctx=chat_ctx, chat_messages=messages)
+            response_text = " ".join(str(c) for c in response.content)
+
+            # Extract JSON from response
+            analysis_dict = self._extract_analysis_dict(response_text)
+            if not analysis_dict:
+                # Fallback: create minimal dict
+                analysis_dict = {
+                    "apparent_emotion": "unknown",
+                    "energy_level": "unknown",
+                    "engagement": "unknown",
+                    "gaze_direction": "unknown",
+                    "facial_cues": [],
+                    "gestures": [],
+                    "confidence": 0.0,
+                    "summary": "Analysis incomplete",
+                }
+
+            # Add timestamp (used for ordering)
+            analysis_dict["timestamp"] = capture_time.isoformat()
+            analysis_dict["timestamp_obj"] = capture_time  # Keep datetime object for sorting
+
+            # Insert in correct timestamp order
+            await self._insert_analysis_in_order(analysis_dict)
+
+        except Exception as e:
+            logger.error(f"Error analyzing frame: {e}")
+
+    async def _insert_analysis_in_order(self, analysis_dict: dict) -> None:
+        """Insert analysis in correct timestamp order."""
+        # Add to pending list
+        self._pending_analyses.append(analysis_dict)
+
+        # Sort pending analyses by timestamp
+        self._pending_analyses.sort(key=lambda x: x.get("timestamp_obj", datetime.min))
+
+        # Insert all analyses that are in order (timestamp <= last in queue or queue is empty)
+        queue_last_timestamp = None
+        if self._frame_descriptions_queue:
+            last_item = self._frame_descriptions_queue[-1]
+            queue_last_timestamp = last_item.get("timestamp_obj")
+
+        # Insert all pending analyses that come after the last queue item
+        to_insert = []
+        remaining = []
+        for analysis in self._pending_analyses:
+            analysis_timestamp = analysis.get("timestamp_obj")
+            if queue_last_timestamp is None or analysis_timestamp >= queue_last_timestamp:
+                to_insert.append(analysis)
+            else:
+                remaining.append(analysis)
+
+        # Insert in order
+        for analysis in to_insert:
+            self._frame_descriptions_queue.append(analysis)
+            # Remove timestamp_obj (keep only ISO string for JSON serialization)
+            analysis.pop("timestamp_obj", None)
+            logger.debug(
+                f"Frame with timestamp {analysis['timestamp']} inserted. Queue size: {len(self._frame_descriptions_queue)}"
+            )
+
+        # Keep remaining analyses that are out of order (waiting for earlier frames)
+        self._pending_analyses = remaining
+
+    def _start_periodic_change_detection(self) -> None:
+        """Start periodic task to detect changes in frame sequence."""
+        if self._change_detection_running:
+            return
+
+        self._change_detection_running = True
+
+        async def periodic_change_detection() -> None:
+            """Periodically analyze queue for changes."""
+            while self._change_detection_running:
+                try:
+                    await asyncio.sleep(self.FRAME_SAMPLING_INTERVAL)
+
+                    if not self._change_detection_llm or len(self._frame_descriptions_queue) < 2:
+                        continue
+
+                    # Get full ordered sequence
+                    descriptions = list(self._frame_descriptions_queue)
+                    result = await self._detect_changes(descriptions)
+
+                    if result and result != self._last_change_detection_result:
+                        self._last_change_detection_result = result
+                        await self._send_to_glasses(result)
+
+                except asyncio.CancelledError:
+                    self._change_detection_running = False
+                    break
+                except Exception as e:
+                    logger.error(f"Error in change detection: {e}")
+
+        task = asyncio.create_task(periodic_change_detection())
+        task.add_done_callback(lambda t: self._tasks.remove(t) if t in self._tasks else None)
+        self._tasks.append(task)
+        logger.info("Started periodic change detection")
+
+    async def _detect_changes(self, descriptions: list[dict]) -> str | None:
+        """Analyze full ordered sequence of frame descriptions for changes."""
+        if not self._change_detection_llm or not descriptions:
+            return None
+
+        try:
+            # Format descriptions with temporal order
+            descriptions_text = "\n\n".join(
+                f"Frame {i+1} (timestamp: {desc.get('timestamp', 'unknown')}):\n"
+                f"Emotion: {desc.get('apparent_emotion', 'unknown')}, "
+                f"Energy: {desc.get('energy_level', 'unknown')}, "
+                f"Engagement: {desc.get('engagement', 'unknown')}, "
+                f"Gaze: {desc.get('gaze_direction', 'unknown')}, "
+                f"Summary: {desc.get('summary', 'N/A')}"
+                for i, desc in enumerate(descriptions)
+            )
+
+            contextual_prompt = """You are analyzing a temporal sequence of frame descriptions. Your task is to:
+1. Understand what is currently happening in the scene (based on the latest frames)
+2. Identify any significant changes or patterns across the full sequence
+3. Consider the progression and order of frames, not just the latest vs previous
+4. Focus on contextual clues like: nodding, attention to phone, person approaching/leaving, engagement changes
+
+Return a brief, human-readable string (1-2 sentences) describing:
+- What is currently happening in the scene
+- Any relevant changes that occurred compared to earlier in the sequence
+
+If no significant changes are detected, return a simple description of the current state only."""
+
+            chat_ctx = llm.ChatContext()
+            messages = [
+                llm.ChatMessage(
+                    role="system",
+                    content=[contextual_prompt],
+                ),
+                llm.ChatMessage(
+                    role="user",
+                    content=[
+                        f"Analyze this sequence of frame descriptions in temporal order:\n\n{descriptions_text}"
+                    ],
+                ),
+            ]
+
+            response = await self._change_detection_llm.chat(ctx=chat_ctx, chat_messages=messages)
+            result_text = " ".join(str(c) for c in response.content).strip()
+
+            return result_text if result_text else None
+
+        except Exception as e:
+            logger.error(f"Error in change detection: {e}")
+            return None
+
+    async def _send_to_glasses(self, text: str) -> None:
+        """Send text to glasses via TTS."""
+        if not self._session:
+            logger.warning("No session available for TTS output")
+            return
+
+        try:
+            await self._session.generate_reply(instructions=f"Say: {text}")
+            logger.info(f"Sent to glasses via TTS: {text[:50]}...")
+        except Exception as e:
+            logger.error(f"Error sending to glasses: {e}")
+
+    def set_session(self, session: AgentSession) -> None:
+        """Set the session reference for TTS output."""
+        self._session = session
+        logger.info("Session reference set for TTS output")
+
 
 async def should_accept_job(job_request: JobRequest) -> None:
     """Filter function to accept only jobs matching this agent's name.
@@ -324,6 +561,7 @@ async def entrypoint(ctx: JobContext) -> None:
 
     agent = EmotionAssistant()
     await session.start(room=ctx.room, agent=agent)
+    agent.set_session(session)  # Provide session reference for TTS output
     @session.on("user_input_transcribed")
     def _on_user_input(text: str) -> None:
         logger.info(f"User said: {text}")
