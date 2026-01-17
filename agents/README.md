@@ -367,7 +367,7 @@ This allows experimenting with different models on the same conversation.
 ### Development
 
 ```bash
-uv run python vision_agent.py dev
+uv run python example_agent.py dev
 ```
 
 ### Production
