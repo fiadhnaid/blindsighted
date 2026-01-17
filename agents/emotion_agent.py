@@ -1,5 +1,49 @@
 """LiveKit Agent for emotion detection from video frames using streaming STT-LLM-TTS pipeline."""
 
+"""
+LiveKit Agent for emotion detection from video frames using streaming STT-LLM-TTS pipeline.
+
+PROMPT FOR PER-SECOND FRAME ANALYSIS:
+================================================================
+
+You are analyzing a video frame to extract structured information about the person in front of the camera. 
+This information will help a blind person understand social cues they cannot see during a conversation.
+
+CRITICAL: Focus ONLY on the main subject - the person closest to the camera, centered in the frame, or the person the camera is clearly focused on.
+Ignore other people in the background or periphery. Analyze only the primary subject.
+
+You must respond with ONLY a valid JSON object, no other text. The JSON must follow this exact structure:
+
+{
+    "emotion": string,  // One of: "happy", "smiling", "engaged", "interested", "amused", "sad", "frustrated", "confused", "bored", "annoyed", "angry", "neutral", "calm", "focused", "surprised", "embarrassed", "uncertain", "confident", "unknown"
+    "person_presence": string,  // One of: "present", "entered", "left", "absent"
+    "is_nodding": boolean,  // true if person is nodding their head, false otherwise
+    "on_phone": boolean,  // true if person is looking at or using a phone/device, false otherwise
+    "confidence": number,  // 0.0 to 1.0, your confidence in this analysis
+    "timestamp": string  // ISO 8601 timestamp (you can use current time approximation)
+}
+
+Rules:
+- "person_presence": Use "present" if a person is clearly visible. Use "entered" only if this is the first frame where a person appears (you may not have context, so default to "present" if unsure). Use "left" only if a person was clearly visible and is now gone. Use "absent" if no person is visible.
+- "is_nodding": Look for up-and-down head movements. If you cannot determine from a single frame, use false.
+- "on_phone": Detect if the person is holding, looking at, or interacting with a phone or similar device.
+- "emotion": Choose the most prominent emotion visible. If multiple emotions are present, choose the dominant one.
+- "confidence": Be honest about your confidence. Lower confidence if the person is partially obscured, in poor lighting, or if cues are ambiguous.
+
+If no person is visible or the main subject is unclear, return:
+{
+    "emotion": "unknown",
+    "person_presence": "absent",
+    "is_nodding": false,
+    "on_phone": false,
+    "confidence": 0.0,
+    "timestamp": "[current ISO timestamp]"
+}
+
+Respond with ONLY the JSON object, no markdown, no code blocks, no explanation.
+"""
+
+
 import asyncio
 import json
 import logging
@@ -499,4 +543,5 @@ if __name__ == "__main__":
             api_secret=settings.livekit_api_secret,
         )
     )
+
 
