@@ -729,11 +729,15 @@ Remember: When SHOULD_SPEAK is true, write the DESCRIPTION as if you are the voi
             description_match = re.search(r'DESCRIPTION:\s*(.+)', result_text, re.IGNORECASE | re.DOTALL)
             if description_match:
                 description = description_match.group(1).strip()
-                logger.debug(f"Parsed DESCRIPTION: {description[:100]}...")
+                # Remove any leading "description:" or "description -" that LLM might redundantly add
+                description = re.sub(r'^description[\s:;,\-]*', '', description, flags=re.IGNORECASE).strip()
+                logger.debug(f"Parsed DESCRIPTION (after cleanup): {description[:100]}...")
             else:
                 # Fallback: use entire text if no DESCRIPTION marker found
                 logger.warning("Could not find DESCRIPTION marker, using entire response")
                 description = result_text
+                # Clean up fallback too
+                description = re.sub(r'^description[\s:;,\-]*', '', description, flags=re.IGNORECASE).strip()
 
             if not description:
                 logger.warning("No description found in change detection response")
@@ -823,7 +827,7 @@ async def entrypoint(ctx: JobContext) -> None:
         tts=tts_instance,
         vad=silero.VAD.load(),
         min_interruption_duration=1.0,
-        allow_interruptions=True,
+        allow_interruptions=False,
         use_tts_aligned_transcript=True,
     )
 
