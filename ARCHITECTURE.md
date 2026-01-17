@@ -348,11 +348,11 @@ egress = await livekit.start_room_composite_egress(
 **Agent Server:**
 
 ```python
-# agents/vision_agent.py
+# agents/example_agent.py
 server = AgentServer()
 
 @server.rtc_session()
-async def vision_agent(ctx: JobContext):
+async def example_agent(ctx: JobContext):
     session = AgentSession(stt=..., llm=..., tts=...)
     await session.start(room=ctx.room, agent=VisionAssistant())
 ```
@@ -449,7 +449,7 @@ docker run -p 8000:8000 --env-file .env blindsighted-api
 ```bash
 cd agents
 uv pip install -e .
-uv run python vision_agent.py start
+uv run python example_agent.py start
 ```
 
 ### Environment Variables

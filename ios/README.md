@@ -32,8 +32,6 @@ Based on the [CameraAccess sample](https://github.com/facebook/meta-wearables-da
 - Xcode 26.2+ **IMPORTANT**
 - Swift 6.2+ **IMPORTANT**
 - An apple developer account
-- Xcode 26.2+ **IMPORTANT**
-- Swift 6.2+ **IMPORTANT**
 - iOS 17.0+
 - Meta Wearables Device Access Toolkit (included as a dependency)
 - A Meta AI glasses device for testing (optional for development)
@@ -46,6 +44,8 @@ Based on the [CameraAccess sample](https://github.com/facebook/meta-wearables-da
 1. Open the project in Xcode
 1. Select your target device (needs to be a real device, not simulator + remember to turn on developer mode!)
 1. Add your team in Signing & Capabilities (you need an apple developer account)
+1. Select your target device (needs to be a real device, not simulator + remember to turn on developer mode!)
+1. Add your team in Signing & Capabilities (you need an apple developer account)
 1. Click the "Build" button or press `Cmd+B` to build the project
 1. To run the app, click the "Run" button (▶️) or press `Cmd+R`
 
@@ -55,6 +55,11 @@ Based on the [CameraAccess sample](https://github.com/facebook/meta-wearables-da
 1. Launch the app.
 1. Press the "Connect" button to complete app registration.
 1. Once connected, the camera stream from the device will be displayed
+
+## I've updated the iOS code in my IDE, how do I make sure XCode is running the latest?
+
+1. If you've edited a pre-existing file, just run again in XCode
+2. If you've added new files, tell Claude to add those files in XCode - instructions for Claude covered in Claude.md
 
 ## I've updated the iOS code in my IDE, how do I make sure XCode is running the latest?
 
