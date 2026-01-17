@@ -77,10 +77,10 @@ Required configuration:
 
 ```bash
 # Development mode
-uv run python vision_agent.py dev
+uv run example_agent.py dev
 
 # Production mode
-uv run python vision_agent.py start
+uv run example_agent.py start
 ```
 
 The agent will:
@@ -113,7 +113,7 @@ This web-based tool provides a browser interface for interacting with your agent
 
 ```bash
 cd agents
-uv run python vision_agent.py dev
+uv run python example_agent.py dev
 ```
 
 The agent will connect to your LiveKit Cloud instance and wait for rooms.
@@ -138,16 +138,19 @@ Visit https://agents-playground.livekit.io/
 ### Playground Features
 
 **Audio Input:**
+
 - Speak directly into your microphone
 - Agent processes speech via STT pipeline
 - Responses play through your speakers
 
 **Video Input:**
+
 - Share your webcam for vision-enabled agents
 - Agent receives video frames just like from glasses
 - Test scene description and visual understanding
 
 **Debug Panel:**
+
 - View real-time transcriptions
 - See agent responses before TTS
 - Monitor connection status and tracks
@@ -159,7 +162,7 @@ For the vision agent, the playground is excellent for testing:
 
 ```bash
 # Start vision agent
-uv run python vision_agent.py dev
+uv run python example_agent.py dev
 
 # In playground:
 # 1. Enable your webcam
@@ -174,20 +177,23 @@ The agent processes webcam frames exactly like it would process glasses camera f
 If you're using agent filtering (see [Agent Filtering System](#agent-filtering-system)), you'll need to:
 
 **Option 1: Use default agent (no filtering)**
+
 - Don't set `LIVEKIT_AGENT_NAME` in `.env`
 - Agent accepts all rooms (backward compatibility)
 
 **Option 2: Create rooms with metadata via API**
+
 - Keep using the backend API to create rooms with `agent_id`
 - Agent only joins rooms with matching metadata
 - Playground connects to pre-existing rooms
 
 **Option 3: Temporarily disable filtering for testing**
+
 - Comment out the `request_fnc` parameter:
   ```python
   # @server.rtc_session(request_fnc=should_accept_job)  # Temporarily disabled
   @server.rtc_session()
-  async def vision_agent(ctx: JobContext) -> None:
+  async def example_agent(ctx: JobContext) -> None:
       ...
   ```
 
@@ -206,7 +212,7 @@ For production testing with the full stack (iOS app + glasses + backend), see th
 
 ### Create Your Own Agent
 
-Copy `vision_agent.py` and modify:
+Copy `example_agent.py` and modify:
 
 **Change the AI models:**
 
@@ -326,7 +332,7 @@ Run different specialized agents simultaneously:
 ```bash
 # Terminal 1 - Vision agent
 cd agents
-LIVEKIT_AGENT_NAME=vision-agent uv run python vision_agent.py dev
+LIVEKIT_AGENT_NAME=vision-agent uv run python example_agent.py dev
 
 # Terminal 2 - Transcription agent (hypothetical)
 cd agents
@@ -374,7 +380,7 @@ uv run python example_agent.py dev
 
 ```bash
 # Run as a service
-uv run python vision_agent.py start
+uv run python example_agent.py start
 
 # Or with systemd, Docker, etc.
 ```
@@ -385,7 +391,7 @@ You can run multiple agent workers simultaneously. Use `LIVEKIT_AGENT_NAME` to e
 
 ```bash
 # Terminal 1 - Vision agent
-LIVEKIT_AGENT_NAME=vision-agent uv run python vision_agent.py dev
+LIVEKIT_AGENT_NAME=vision-agent uv run python example_agent.py dev
 
 # Terminal 2 - Custom agent with different name
 LIVEKIT_AGENT_NAME=custom-agent uv run python custom_agent.py dev
@@ -398,7 +404,7 @@ Each agent worker can handle multiple rooms concurrently. See the [Agent Filteri
 **Agent not joining rooms:**
 
 - Check LiveKit credentials in `.env`
-- Verify agent can connect: `uv run python vision_agent.py dev`
+- Verify agent can connect: `uv run python example_agent.py dev`
 - Check LiveKit Cloud dashboard for connected agents
 - **Agent filtering issue**: Verify `LIVEKIT_AGENT_NAME` in agent's `.env` matches the `agent_id` used in `/sessions/start` request
 - Check agent logs for "Rejecting job" messages indicating a mismatch
